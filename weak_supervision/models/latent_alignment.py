@@ -1,24 +1,17 @@
-from typing import Dict, Optional, List, Any
+from typing import Dict, Optional, List
 
-import numpy
 from overrides import overrides
 import torch
 from torch.nn.modules.linear import Linear
 
-from allennlp.common.checks import check_dimensions_match
 from allennlp.data import Vocabulary
-from allennlp.modules import Seq2SeqEncoder, TimeDistributed, TextFieldEmbedder
+from allennlp.modules import TextFieldEmbedder
 from allennlp.models.model import Model
 from allennlp.nn import InitializerApplicator, RegularizerApplicator
-from allennlp.nn.util import get_text_field_mask, sequence_cross_entropy_with_logits
-from allennlp.training.metrics import CategoricalAccuracy
 
 
 @Model.register("latent_alignment")
 class LatentAlignment(Model):
-    """
-    """
-
     def __init__(self, vocab: Vocabulary,
                  utterance_embedder: TextFieldEmbedder,
                  logical_form_embedder: TextFieldEmbedder,

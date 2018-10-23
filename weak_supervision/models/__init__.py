@@ -1,0 +1,1 @@
+from weak_supervision.models.latent_alignment import LatentAlignment

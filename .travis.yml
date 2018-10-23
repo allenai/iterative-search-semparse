@@ -1,0 +1,9 @@
+language: python
+python:
+  - "3.6.1"
+install:
+  - pip install -q -r requirements.txt
+cache: pip
+script:
+  - pytest
+  - pylint weak_supervision tests

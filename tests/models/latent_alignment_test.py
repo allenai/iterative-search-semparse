@@ -1,6 +1,8 @@
 # pylint: disable=invalid-name,no-self-use,protected-access
 from allennlp.common.testing import ModelTestCase
 
+from weak_supervision import *
+
 class LatentAlignmentModelTest(ModelTestCase):
     def setUp(self):
         super().setUp()

@@ -1,0 +1,1 @@
+from weak_supervision.predictors.latent_alignment import LatentAlignmentPredictor

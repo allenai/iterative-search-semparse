@@ -1,0 +1,1 @@
+from weak_supervision.data.dataset_readers.latent_alignment import LatentAlignmentDatasetReader

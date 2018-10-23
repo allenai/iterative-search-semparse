@@ -1,8 +1,6 @@
 from typing import Dict, List
-import gzip
 import json
 import logging
-import os
 
 from overrides import overrides
 
@@ -12,18 +10,15 @@ from allennlp.data.instance import Instance
 from allennlp.data.tokenizers import Token, WordTokenizer
 from allennlp.data.tokenizers.word_splitter import JustSpacesWordSplitter
 from allennlp.data.token_indexers import SingleIdTokenIndexer
-from allennlp.data.dataset_readers.semantic_parsing.wikitables import util
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
 @DatasetReader.register("latent_alignment")
 class LatentAlignmentDatasetReader(DatasetReader):
-    """
-    """
     def __init__(self,
                  dpd_directory: str,
-                 max_logical_forms: int=500,
+                 max_logical_forms: int = 500,
                  lazy: bool = False) -> None:
         super().__init__(lazy)
         self._dpd_directory = dpd_directory

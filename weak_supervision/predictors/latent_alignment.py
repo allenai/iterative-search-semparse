@@ -1,16 +1,13 @@
 from overrides import overrides
 
 from allennlp.common.util import JsonDict
-from allennlp.data import DatasetReader, Instance
-from allennlp.data.tokenizers.word_splitter import SpacyWordSplitter
-from allennlp.models import Model
+from allennlp.data import Instance
 from allennlp.predictors.predictor import Predictor
 
 
 @Predictor.register('latent-alignment')
 class LatentAlignmentPredictor(Predictor):
-    """
-    """
+    # pylint: disable=no-member
     @overrides
     def _json_to_instance(self, json_dict: JsonDict) -> Instance:
         """
