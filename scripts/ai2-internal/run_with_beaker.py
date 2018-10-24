@@ -59,7 +59,9 @@ def main(param_file: str, args: argparse.Namespace):
             "/config.json",
             "-s",
             "/output",
-            "--file-friendly-logging"
+            "--file-friendly-logging",
+            "--include-package",
+            "weak_supervision"
         ]
 
     dataset_mounts = []

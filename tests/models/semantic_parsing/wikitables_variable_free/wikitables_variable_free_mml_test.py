@@ -10,6 +10,8 @@ from allennlp.common import Params
 from allennlp.common.testing import ModelTestCase
 from allennlp.data.iterators import DataIterator
 
+from weak_supervision import *
+
 @pytest.mark.java
 class WikiTablesMmlSemanticParserTest(ModelTestCase):
     def setUp(self):
