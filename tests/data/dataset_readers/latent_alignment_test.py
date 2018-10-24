@@ -2,8 +2,8 @@
 
 from allennlp.common.testing import AllenNlpTestCase
 from allennlp.common import Params
+from weak_supervision.data.dataset_readers.semantic_parsing.latent_alignment import LatentAlignmentDatasetReader
 
-from weak_supervision.data.dataset_readers.latent_alignment import LatentAlignmentDatasetReader
 
 class TestLatentAlignmentDatasetReader(AllenNlpTestCase):
     def test_reader_can_read(self):
