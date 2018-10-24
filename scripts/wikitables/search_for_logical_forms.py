@@ -8,12 +8,12 @@ import gzip
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir)))))
 
-from allennlp.semparse import ActionSpaceWalker
 from allennlp.semparse.contexts import TableQuestionContext
 from allennlp.semparse.worlds import WikiTablesVariableFreeWorld
 from allennlp.data.tokenizers import WordTokenizer
 from allennlp.data.dataset_readers.semantic_parsing.wikitables import util as wikitables_util
 
+from weak_supervision.semparse import ActionSpaceWalker
 
 def search(tables_directory: str,
            input_examples_file: str,
@@ -46,7 +46,8 @@ def search(tables_directory: str,
         if use_agenda:
             agenda = world.get_agenda()
             all_logical_forms = walker.get_logical_forms_with_agenda(agenda=agenda,
-                                                                     max_num_logical_forms=10000)
+                                                                     max_num_logical_forms=10000,
+                                                                     allow_partial_match=True)
         else:
             all_logical_forms = walker.get_all_logical_forms(max_num_logical_forms=10000)
         for logical_form in all_logical_forms:
@@ -81,7 +82,8 @@ if __name__ == "__main__":
                         help="Max length to which we will search exhaustively")
     parser.add_argument("--max-num-logical-forms", type=int, dest="max_num_logical_forms",
                         default=100, help="Maximum number of logical forms returned")
-    parser.add_argument("--use-agenda", dest="use_agenda", action="store_true")
+    parser.add_argument("--use-agenda", dest="use_agenda", action="store_true",
+                        help="Use agenda to sort the output logical forms")
     parser.add_argument("--output-separate-files", dest="output_separate_files",
                         action="store_true", help="""If set, the script will output gzipped
                         files, one per example. You may want to do this if you;re making data to
