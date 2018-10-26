@@ -4,6 +4,7 @@ import logging
 
 from overrides import overrides
 
+from allennlp.common.file_utils import cached_path
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.fields import TextField, Field, ListField, MetadataField
 from allennlp.data.instance import Instance
@@ -29,7 +30,7 @@ class LatentAlignmentDatasetReader(DatasetReader):
 
     @overrides
     def _read(self, file_path: str):
-        with open(file_path, "r") as data_file:
+        with open(cached_path(file_path), "r") as data_file:
             examples = json.load(data_file)
         for utterance, sempre_forms in examples:
             if len(sempre_forms) > self._max_logical_forms:

@@ -1,0 +1,41 @@
+{
+  "dataset_reader": {
+    "type": "latent_alignment",
+    "max_logical_forms": 200,
+    "dpd_directory": "/wikitables/dpd_output/"
+  },
+  "train_data_path": "https://s3-us-west-2.amazonaws.com/allennlp-research/weak-supervision/latent-alignment/train_small.json",
+  "validation_data_path": "https://s3-us-west-2.amazonaws.com/allennlp-research/weak-supervision/latent-alignment/dev_small.json",
+  "model": {
+    "type": "latent_alignment",
+    "utterance_embedder": {
+      "tokens": {
+        "type": "embedding",
+        "embedding_dim": 25,
+        "trainable": true
+      }
+    },
+    "logical_form_embedder": {
+      "lf_tokens": {
+        "type": "embedding",
+        "vocab_namespace": "lf_tokens",
+        "embedding_dim": 25,
+        "trainable": true
+      }
+    }
+  },
+  "iterator": {
+    "type": "bucket",
+    "sorting_keys": [["logical_forms", "num_fields"], ["logical_forms", "list_num_tokens"]],
+    "padding_noise": 0.0,
+    "batch_size" : 32
+  },
+  "trainer": {
+    "num_epochs": 20,
+    "patience": 10,
+    "cuda_device": 0,
+    "optimizer": {
+      "type": "adam"
+    }
+  }
+}
