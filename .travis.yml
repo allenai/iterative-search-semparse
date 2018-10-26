@@ -6,4 +6,4 @@ install:
 cache: pip
 script:
   - pytest
-  - pylint weak_supervision tests
+  - pylint weak_supervision tests scripts
