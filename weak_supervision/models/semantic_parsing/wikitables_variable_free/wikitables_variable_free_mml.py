@@ -151,7 +151,7 @@ class WikiTablesVariableFreeMml(WikiTablesVariableFreeParser):
             and use the embeddings to determine which action to take at each timestep in the
             decoder.
         target_values : ``List[List[str]]``, optional (default = None)
-            For each instance, a list of target values taken from the example lis string. We pass
+            For each instance, a list of target values taken from the example lisp string. We pass
             this list to the evaluator along with logical forms to compute denotation accuracy.
         target_action_sequences : torch.Tensor, optional (default = None)
            A list of possibly valid action sequences, where each action is an index into the list
