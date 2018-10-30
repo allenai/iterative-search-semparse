@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 # Script to launch AllenNLP Beaker jobs.
+# pylint: disable=all
 
 import argparse
 import os
@@ -12,11 +13,10 @@ import sys
 
 # This has to happen before we import spacy (even indirectly), because for some crazy reason spacy
 # thought it was a good idea to set the random seed on import...
-RANDOM_INT = random.randint(0, 2**32)
+random_int = random.randint(0, 2**32)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(os.path.join(os.path.join(__file__, os.pardir), os.pardir))))
 
-# pylint: disable=wrong-import-position
 from allennlp.common.params import Params
 
 
@@ -29,14 +29,14 @@ def main(param_file: str, args: argparse.Namespace):
     params = Params.from_file(param_file, overrides)
     flat_params = params.as_flat_dict()
     env = {}
-    for key, value in flat_params.items():
-        key = str(key).replace('.', '_')
-        env[key] = str(value)
+    for k, v in flat_params.items():
+        k = str(k).replace('.', '_')
+        env[k] = str(v)
 
     # If the git repository is dirty, add a random hash.
     result = subprocess.run('git diff-index --quiet HEAD --', shell=True)
     if result.returncode != 0:
-        dirty_hash = "%x" % RANDOM_INT
+        dirty_hash = "%x" % random_int
         image += "-" + dirty_hash
 
     if args.blueprint:
@@ -47,14 +47,10 @@ def main(param_file: str, args: argparse.Namespace):
         subprocess.run(f'docker build -t {image} .', shell=True, check=True)
 
         print(f"Create a Beaker blueprint...")
-        blueprint = subprocess.check_output(f'beaker blueprint create --quiet {image}',
-                                            shell=True,
-                                            universal_newlines=True).strip()
+        blueprint = subprocess.check_output(f'beaker blueprint create --quiet {image}', shell=True, universal_newlines=True).strip()
         print(f"  Blueprint created: {blueprint}")
 
-    config_dataset_id = subprocess.check_output(f'beaker dataset create --quiet {param_file}',
-                                                shell=True,
-                                                universal_newlines=True).strip()
+    config_dataset_id = subprocess.check_output(f'beaker dataset create --quiet {param_file}', shell=True, universal_newlines=True).strip()
 
     allennlp_command = [
             "python",
@@ -67,15 +63,15 @@ def main(param_file: str, args: argparse.Namespace):
             "--file-friendly-logging",
             "--include-package",
             "weak_supervision"
-            ]
+        ]
 
     dataset_mounts = []
     for source in args.source + [f"{config_dataset_id}:/config.json"]:
-        dataset_id, container_path = source.split(":")
+        datasetId, containerPath = source.split(":")
         dataset_mounts.append({
-                "dataset_id": dataset_id,
-                "container_path": container_path
-                })
+            "datasetId": datasetId,
+            "containerPath": containerPath
+        })
 
     for var in args.env:
         key, value = var.split("=")
@@ -89,22 +85,22 @@ def main(param_file: str, args: argparse.Namespace):
     if args.gpu_count:
         requirements["gpuCount"] = int(args.gpu_count)
     config_spec = {
-            "description": args.desc,
-            "blueprint": blueprint,
-            "resultPath": "/output",
-            "args": allennlp_command,
-            "datasetMounts": dataset_mounts,
-            "requirements": requirements,
-            "env": env
-            }
+        "description": args.desc,
+        "blueprint": blueprint,
+        "resultPath": "/output",
+        "args": allennlp_command,
+        "datasetMounts": dataset_mounts,
+        "requirements": requirements,
+        "env": env
+    }
     config_task = {"spec": config_spec, "name": "training"}
 
     config = {
-            "tasks": [config_task]
-            }
+        "tasks": [config_task]
+    }
 
     output_path = args.spec_output_path if args.spec_output_path else tempfile.mkstemp(".yaml",
-                                                                                       "beaker-config-")[1]
+            "beaker-config-")[1]
     with open(output_path, "w") as output:
         output.write(json.dumps(config, indent=4))
     print(f"Beaker spec written to {output_path}.")
@@ -123,27 +119,20 @@ def main(param_file: str, args: argparse.Namespace):
         subprocess.run(experiment_command)
 
 if __name__ == "__main__":
-    # pylint: disable=invalid-name
     parser = argparse.ArgumentParser()
 
     parser.add_argument('param_file', type=str, help='The model configuration file.')
     parser.add_argument('--name', type=str, help='A name for the experiment.')
-    parser.add_argument('--spec_output_path', type=str,
-                        help='The destination to write the experiment spec.')
-    parser.add_argument('--dry-run', action='store_true',
-                        help='If specified, an experiment will not be created.')
-    parser.add_argument('--blueprint', type=str,
-                        help='The Blueprint to use (if unspecified one will be built)')
+    parser.add_argument('--spec_output_path', type=str, help='The destination to write the experiment spec.')
+    parser.add_argument('--dry-run', action='store_true', help='If specified, an experiment will not be created.')
+    parser.add_argument('--blueprint', type=str, help='The Blueprint to use (if unspecified one will be built)')
     parser.add_argument('--desc', type=str, help='A description for the experiment.')
-    parser.add_argument('--env', action='append', default=[],
-                        help='Set environment variables (e.g. NAME=value or NAME)')
-    parser.add_argument('--source', action='append', default=[],
-                        help='Bind a remote data source (e.g. source-id:/target/path)')
+    parser.add_argument('--env', action='append', default=[], help='Set environment variables (e.g. NAME=value or NAME)')
+    parser.add_argument('--source', action='append', default=[], help='Bind a remote data source (e.g. source-id:/target/path)')
     parser.add_argument('--cpu', help='CPUs to reserve for this experiment (e.g., 0.5)')
-    parser.add_argument('--gpu-count', default=1,
-                        help='GPUs to use for this experiment (e.g., 1 (default))')
+    parser.add_argument('--gpu-count', default=1, help='GPUs to use for this experiment (e.g., 1 (default))')
     parser.add_argument('--memory', help='Memory to reserve for this experiment (e.g., 1GB)')
 
-    arguments = parser.parse_args()
+    args = parser.parse_args()
 
-    main(arguments.param_file, arguments)
+    main(args.param_file, args)
