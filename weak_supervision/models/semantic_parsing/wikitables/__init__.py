@@ -1,0 +1,1 @@
+from weak_supervision.models.semantic_parsing.wikitables.wikitables_dmml_semantic_parser import WikiTablesDMMLSemanticParser
