@@ -51,7 +51,7 @@ from allennlp.data.dataset_readers.dataset_reader import DatasetReader
 from allennlp.data.iterators.data_iterator import DataIterator
 from allennlp.models.archival import archive_model, CONFIG_NAME
 from allennlp.models.model import Model, _DEFAULT_WEIGHTS
-from weak_supervision.training.trainer import TrainerWithNoop
+from weak_supervision.training import TrainerWithNoop
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
