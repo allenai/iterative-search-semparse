@@ -7,6 +7,7 @@ import time
 import re
 import datetime
 import traceback
+from overrides import overrides
 from typing import Dict, Optional, List, Tuple, Union, Iterable, Any, Set
 
 import torch
@@ -173,7 +174,6 @@ class TrainerWithNoop(Trainer):
 
 
 
-    @overrides
     def _batch_loss(self, batch: torch.Tensor, for_training: bool) -> torch.Tensor:
         """
         Does a forward pass on the given batch and returns the ``loss`` value in the result.
