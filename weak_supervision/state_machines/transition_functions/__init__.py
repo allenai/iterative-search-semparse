@@ -1,3 +1,4 @@
 from weak_supervision.state_machines.transition_functions.basic_transition_function import BasicTransitionFunction
+from weak_supervision.state_machines.transition_functions.linking_transition_function import LinkingTransitionFunction
 from weak_supervision.state_machines.transition_functions.linking_coverage_transition_function import (
         LinkingCoverageTransitionFunction)

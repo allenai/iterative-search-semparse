@@ -18,7 +18,7 @@ from allennlp.state_machines.states import GrammarBasedState
 from weak_supervision.state_machines.trainers import DynamicMaximumMarginalLikelihood 
 from allennlp.state_machines.trainers.decoder_trainer import DecoderTrainer
 
-from allennlp.state_machines.transition_functions import LinkingTransitionFunction
+from weak_supervision.state_machines.transition_functions import LinkingTransitionFunction
 from allennlp.training.metrics import Average
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
