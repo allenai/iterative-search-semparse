@@ -1,0 +1,1 @@
+from weak_supervision.training.trainer_noop import TrainerWithNoop
