@@ -101,7 +101,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
             # The wikitables parser did something different when predicting the start type, which
             # is our first action.  So in this case we break out into a different function.  We'll
             # ignore max_actions on our first step, assuming there aren't that many start types.
-            return self._take_first_step(state, allowed_actions, sample_states)
+            return self._take_first_step(state, sample_states, allowed_actions)
 
         # Taking a step in the decoder consists of three main parts.  First, we'll construct the
         # input to the decoder and update the decoder's hidden state.  Second, we'll use this new
@@ -337,8 +337,9 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
         if sample_states:
             # (group_size,) one action per group element 
             sampler = Categorical(logits=sorted_log_probs)
-            sampled_actions = sampler.sample() 
-            all_actions = [all_actions[action_idx] for action_idx in sampled_actions]                                   
+            sampled_action_indices = sampler.sample().detach().cpu().numpy().tolist() 
+            # we've sampled action_idx for the ith group
+            all_actions = [all_actions[i][action_idx] for i, action_idx in enumerate(sampled_action_indices) ]                                   
 
         if state.debug_info is not None:
             probs_cpu = log_probs.exp().detach().cpu().numpy().tolist()
@@ -358,6 +359,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
         for group_index, (batch_index, group_action) in enumerate(zip(state.batch_indices, all_actions)):
             if sample_states: # just one action per group
                 action = considered_actions[group_index][group_action]
+                action_index = sampled_action_indices[group_index]
                 if allowed_actions is not None and action not in allowed_actions[group_index]:
                     # This happens when our _decoder trainer_ wants us to only evaluate certain
                     # actions, likely because they are the gold actions in this state.  We just skip

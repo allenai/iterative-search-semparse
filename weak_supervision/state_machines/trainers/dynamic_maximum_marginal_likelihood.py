@@ -51,6 +51,7 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
 
 
         if self.sample_states:
+            print("sampling states!")
             finished_states = []
             for i in range(self._max_num_finished_states):
                 finished_states.extend(self._sample(initial_state, transition_function))
@@ -58,7 +59,6 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
         else:
             finished_states = self._get_finished_states(initial_state, transition_function)
 
-        import pdb; pdb.set_trace();
         states_by_batch_index: Dict[int, List[State]] = defaultdict(list)
         for state in finished_states:
             assert len(state.batch_indices) == 1
