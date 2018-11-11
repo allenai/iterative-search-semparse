@@ -123,11 +123,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                                                  sample_states)
 
 
-        # return probabilities along with the states
-        if ret_probs:
-            return  [(state, prob) in zip(new_states, batch_results) ]
-        else:
-            return new_states
+        return new_states
 
     def _update_decoder_state(self, state: GrammarBasedState) -> Dict[str, torch.Tensor]:
         # For updating the decoder, we're doing a bunch of tensor operations that can be batched
@@ -339,7 +335,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
             sampler = Categorical(logits=sorted_log_probs)
             sampled_action_indices = sampler.sample().detach().cpu().numpy().tolist() 
             # we've sampled action_idx for the ith group
-            all_actions = [all_actions[i][action_idx] for i, action_idx in enumerate(sampled_action_indices) ]                                   
+            all_actions = [all_actions[i][action_idx] for i, action_idx in enumerate(sampled_action_indices)]
 
         if state.debug_info is not None:
             probs_cpu = log_probs.exp().detach().cpu().numpy().tolist()
