@@ -147,30 +147,30 @@ class TrainerWithNoop(Trainer):
         should_log_learning_rate : ``bool``, optional, (default = False)
             Whether to send parameter specific learning rate to tensorboard.
         """
-
+        print("Using NOOP trainer")
         super().__init__( 
-                 model,
-                 optimizer,
-                 iterator,
-                 train_dataset,
-                 validation_dataset,
-                 patience,
-                 validation_metric,
-                 validation_iterator,
-                 shuffle,
-                 num_epochs,
-                 serialization_dir,
-                 num_serialized_models_to_keep,
-                 keep_serialized_model_every_num_seconds,
-                 model_save_interval,
-                 cuda_device,
-                 grad_norm,
-                 grad_clipping,
-                 learning_rate_scheduler,
-                 summary_interval,
-                 histogram_interval,
-                 should_log_parameter_statistics,
-                 should_log_learning_rate)
+                model,
+                optimizer,
+                iterator,
+                train_dataset,
+                validation_dataset,
+                patience,
+                validation_metric,
+                validation_iterator,
+                shuffle,
+                num_epochs,
+                serialization_dir,
+                num_serialized_models_to_keep,
+                keep_serialized_model_every_num_seconds,
+                model_save_interval,
+                cuda_device,
+                grad_norm,
+                grad_clipping,
+                learning_rate_scheduler,
+                summary_interval,
+                histogram_interval,
+                should_log_parameter_statistics,
+                should_log_learning_rate)
 
 
 
