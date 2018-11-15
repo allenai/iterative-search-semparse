@@ -52,9 +52,8 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
 
         if self.sample_states:
             finished_states = []
-            for i in range(self._max_num_finished_states):
+            for _ in range(self._max_num_finished_states):
                 finished_states.extend(self._sample(initial_state, transition_function))
-
         else:
             finished_states = self._get_finished_states(initial_state, transition_function)
 
@@ -64,18 +63,17 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
             batch_index = state.batch_indices[0]
             states_by_batch_index[batch_index].append(state)
 
-        loss = initial_state.score[0].new_zeros(1) 
+        loss = initial_state.score[0].new_zeros(1)
         search_hits = 0.0
         for instance_states in states_by_batch_index.values():
             scores = [state.score[0].view(-1) for state in instance_states if reward_function(state) == 1]
-            if len(scores) > 0:
-                loss += -nn_util.logsumexp(torch.cat(scores))  
+            if not scores:
+                loss += -nn_util.logsumexp(torch.cat(scores))
                 search_hits += 1
-        
-        return {'loss' : loss / len(states_by_batch_index), 
+        return {'loss' : loss / len(states_by_batch_index),
                 'best_final_states' : self._get_best_final_states(finished_states),
                 'noop' : search_hits == 0.0,
-                'search_hits' : search_hits }
+                'search_hits' : search_hits}
 
 
     def _sample(self,
@@ -89,7 +87,7 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
             next_states = []
             grouped_state = states[0].combine_states(states)
             # These states already come sorted.
-            for next_state in transition_function.take_step(grouped_state, sample_states = True):
+            for next_state in transition_function.take_step(grouped_state, sample_states=True):
                 if next_state.is_finished():
                     finished_states.append(next_state)
                 else:

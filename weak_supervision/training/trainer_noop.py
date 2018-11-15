@@ -1,42 +1,34 @@
 # pylint: disable=too-many-lines
-
 import logging
-import os
-import shutil
 import time
-import re
-import datetime
-import traceback
+from typing import Dict, Optional, List, Tuple, Union, Iterable
+
 from overrides import overrides
-from typing import Dict, Optional, List, Tuple, Union, Iterable, Any, Set
 
 import torch
 import torch.optim.lr_scheduler
-from torch.nn.parallel import replicate, parallel_apply
-from torch.nn.parallel.scatter_gather import scatter_kwargs, gather
 
-from allennlp.common import Params, Registrable
-from allennlp.common.checks import ConfigurationError
-from allennlp.common.util import peak_memory_mb, gpu_memory_mb, dump_metrics
+
+
+from allennlp.common.util import peak_memory_mb, gpu_memory_mb
 from allennlp.common.tqdm import Tqdm
 from allennlp.data.instance import Instance
 from allennlp.data.iterators.data_iterator import DataIterator
 from allennlp.models.model import Model
 from allennlp.nn import util
 from allennlp.training.learning_rate_schedulers import LearningRateScheduler
-from allennlp.training.optimizers import Optimizer
-from allennlp.training.trainer import Trainer, is_sparse, sparse_clip_norm, str_to_time, time_to_str
+from allennlp.training.trainer import Trainer, time_to_str
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 
-
+# pylint: disable=no-member
 class TrainerWithNoop(Trainer):
     """
     Adds an additional functionality of skipping "noop" batches
-    - batches for which no training data was found. While this may sound counterintuitive, 
-    it is a possibility in, for example, Dynamic MML where the model wasn't able to find any logical  
-    form (spurious or not) that evaluated to the correct answer. 
+    - batches for which no training data was found. While this may sound counterintuitive,
+    it is a possibility in, for example, Dynamic MML where the model wasn't able to find any logical
+    form (spurious or not) that evaluated to the correct answer.
     """
 
     def __init__(self,
@@ -148,7 +140,7 @@ class TrainerWithNoop(Trainer):
             Whether to send parameter specific learning rate to tensorboard.
         """
         print("Using NOOP trainer")
-        super().__init__( 
+        super().__init__(
                 model,
                 optimizer,
                 iterator,
@@ -190,7 +182,7 @@ class TrainerWithNoop(Trainer):
             loss = output_dict["loss"]
             if for_training:
                 loss += self._model.get_regularization_penalty()
-            if "noop" in output_dict: 
+            if "noop" in output_dict:
                 noop = output_dict["noop"]
 
         except KeyError:
@@ -329,7 +321,7 @@ class TrainerWithNoop(Trainer):
         val_loss = 0
         for batch in val_generator_tqdm:
 
-            loss, noop = self._batch_loss(batch, for_training=False)
+            loss, _ = self._batch_loss(batch, for_training=False)
             if loss is not None:
                 # You shouldn't necessarily have to compute a loss for validation, so we allow for
                 # `loss` to be None.  We need to be careful, though - `batches_this_epoch` is
