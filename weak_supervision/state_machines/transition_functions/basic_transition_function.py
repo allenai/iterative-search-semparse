@@ -108,9 +108,10 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
         # hidden state (and maybe other information) to predict an action.  Finally, we will
         # construct new states for the next step.  Each new state corresponds to one valid action
         # that can be taken from the current state, and they are ordered by their probability of
-        # being selected.
+        # being selected
 
         updated_state = self._update_decoder_state(state)
+
         batch_results = self._compute_action_probabilities(state,
                                                            updated_state['hidden_state'],
                                                            updated_state['attention_weights'],

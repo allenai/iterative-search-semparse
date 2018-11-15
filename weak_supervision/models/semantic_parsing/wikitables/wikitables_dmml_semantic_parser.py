@@ -17,9 +17,9 @@ from allennlp.semparse.worlds import WikiTablesWorld
 from allennlp.state_machines.states import GrammarBasedState
 from weak_supervision.state_machines.trainers import DynamicMaximumMarginalLikelihood 
 from allennlp.state_machines.trainers.decoder_trainer import DecoderTrainer
+from allennlp.training.metrics import Average
 
 from weak_supervision.state_machines.transition_functions import LinkingTransitionFunction
-from allennlp.training.metrics import Average
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
@@ -267,7 +267,7 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
         return outputs
 
 
-    def _get_state_cost(self, worlds: List[WikiTablesWorld], state: GrammarBasedState) -> torch.Tensor:
+    def _get_state_cost(self, worlds: List[WikiTablesWorld], state: GrammarBasedState) -> float:
         # returns True if the logical form gives the correct answer
         if not state.is_finished():
             raise RuntimeError("_get_state_cost() is not defined for unfinished states!")
@@ -284,7 +284,7 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
         else:
             cost = 0.0
 
-        return torch.Tensor(cost)
+        return cost
 
     @overrides
     def get_metrics(self, reset: bool = False) -> Dict[str, float]:
