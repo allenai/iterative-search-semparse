@@ -67,7 +67,7 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
         search_hits = 0.0
         for instance_states in states_by_batch_index.values():
             scores = [state.score[0].view(-1) for state in instance_states if reward_function(state) == 1]
-            if not scores:
+            if scores:
                 loss += -nn_util.logsumexp(torch.cat(scores))
                 search_hits += 1
         return {'loss' : loss / len(states_by_batch_index),
