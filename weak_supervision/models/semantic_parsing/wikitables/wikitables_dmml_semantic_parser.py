@@ -1,7 +1,7 @@
 import logging
 import os
 from functools import partial
-from typing import Dict, List, Tuple, Set, Any
+from typing import Dict, List, Tuple, Any
 
 from overrides import overrides
 import torch
@@ -12,13 +12,9 @@ from allennlp.models.archival import load_archive, Archive
 from allennlp.models.model import Model
 from allennlp.models.semantic_parsing.wikitables.wikitables_semantic_parser import WikiTablesSemanticParser
 from allennlp.modules import Attention, FeedForward, Seq2SeqEncoder, Seq2VecEncoder, TextFieldEmbedder
-from allennlp.semparse.type_declarations import wikitables_lambda_dcs as types
 from allennlp.semparse.worlds import WikiTablesWorld
 from allennlp.state_machines.states import GrammarBasedState
-from weak_supervision.state_machines.trainers import DynamicMaximumMarginalLikelihood 
-from allennlp.state_machines.trainers.decoder_trainer import DecoderTrainer
-from allennlp.training.metrics import Average
-
+from weak_supervision.state_machines.trainers import DynamicMaximumMarginalLikelihood
 from weak_supervision.state_machines.transition_functions import LinkingTransitionFunction
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -122,11 +118,10 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
 
         self._decoder_trainer: DynamicMaximumMarginalLikelihood = \
                  DynamicMaximumMarginalLikelihood(beam_size=decoder_beam_size,
-                                          normalize_by_length=normalize_beam_score_by_length,
-                                          max_decoding_steps=self._max_decoding_steps,
-                                          max_num_finished_states=decoder_num_finished_states,
-                                          sample_states=use_sampling)
-        unlinked_terminals_global_indices = []
+                                                  normalize_by_length=normalize_beam_score_by_length,
+                                                  max_decoding_steps=self._max_decoding_steps,
+                                                  max_num_finished_states=decoder_num_finished_states,
+                                                  sample_states=use_sampling)
         self._decoder_step = LinkingTransitionFunction(encoder_output_dim=self._encoder.get_output_dim(),
                                                        action_embedding_dim=action_embedding_dim,
                                                        input_attention=attention,
@@ -199,7 +194,7 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
                 example_lisp_string: List[str],
                 target_action_sequences: torch.LongTensor = None,
                 metadata: List[Dict[str, Any]] = None) -> Dict[str, torch.Tensor]:
-        # pylint: disable=arguments-differ
+        # pylint: disable=arguments-differ, unused-argument
         """
         Parameters
         ----------
@@ -250,10 +245,9 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
             initial_state.debug_info = [[] for _ in range(batch_size)]
 
         outputs = self._decoder_trainer.decode(initial_state,  # type: ignore
-                                               self._decoder_step, partial(self._get_state_cost, world) )
+                                               self._decoder_step, partial(self._get_state_cost, world))
 
         best_final_states = outputs['best_final_states']
- 
         self.search_hits += outputs["search_hits"]
         if outputs["noop"]:
             self.noop += 1.0

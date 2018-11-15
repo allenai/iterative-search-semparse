@@ -310,12 +310,12 @@ def train_model(params: Params,
                                                TrainerWithNoop.list_available(),
                                                default_to_first_choice=True)
     trainer = TrainerWithNoop.by_name(trainer_choice).from_params(model=model,
-                                                          serialization_dir=serialization_dir,
-                                                          iterator=iterator,
-                                                          train_data=train_data,
-                                                          validation_data=validation_data,
-                                                          params=trainer_params,
-                                                          validation_iterator=validation_iterator)
+                                                                  serialization_dir=serialization_dir,
+                                                                  iterator=iterator,
+                                                                  train_data=train_data,
+                                                                  validation_data=validation_data,
+                                                                  params=trainer_params,
+                                                                  validation_iterator=validation_iterator)
 
     evaluate_on_test = params.pop_bool("evaluate_on_test", False)
     params.assert_empty('base train command')

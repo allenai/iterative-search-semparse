@@ -159,5 +159,5 @@ class LinkingTransitionFunction(BasicTransitionFunction):
                                                                     log_probs,
                                                                     current_log_probs,
                                                                     output_action_embeddings,
-                                                                 action_ids))
+                                                                    action_ids))
         return batch_results

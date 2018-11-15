@@ -332,9 +332,9 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
         sorted_log_probs, all_actions = log_probs.sort(dim=-1, descending=True)
         all_actions = all_actions.detach().cpu().numpy().tolist()
         if sample_states:
-            # (group_size,) one action per group element 
+            # (group_size,) one action per group element
             sampler = Categorical(logits=sorted_log_probs)
-            sampled_action_indices = sampler.sample().detach().cpu().numpy().tolist() 
+            sampled_action_indices = sampler.sample().detach().cpu().numpy().tolist()
             # we've sampled action_idx for the ith group
             all_actions = [all_actions[i][action_idx] for i, action_idx in enumerate(sampled_action_indices)]
 
@@ -364,7 +364,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                     # new state can be expensive.
                     continue
                 best_next_states[batch_index].append((group_index, action_index, action))
-            else: 
+            else:
                 for action_index, action in enumerate(group_action):
                     # `action` is currently the index in `log_probs`, not the actual action ID.  To get
                     # the action ID, we need to go through `considered_actions`.
