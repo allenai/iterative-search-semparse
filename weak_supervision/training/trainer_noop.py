@@ -165,8 +165,8 @@ class TrainerWithNoop(Trainer):
                 should_log_learning_rate)
 
 
-
-    def _batch_loss(self, batch: torch.Tensor, for_training: bool) -> torch.Tensor:
+    @overrides
+    def batch_loss(self, batch: torch.Tensor, for_training: bool) -> torch.Tensor:
         """
         Does a forward pass on the given batch and returns the ``loss`` value in the result.
         If ``for_training`` is `True` also applies regularization penalty.
@@ -175,13 +175,13 @@ class TrainerWithNoop(Trainer):
             output_dict = self._data_parallel(batch)
         else:
             batch = util.move_to_device(batch, self._cuda_devices[0])
-            output_dict = self._model(**batch)
+            output_dict = self.model(**batch)
 
         noop = False
         try:
             loss = output_dict["loss"]
             if for_training:
-                loss += self._model.get_regularization_penalty()
+                loss += self.model.get_regularization_penalty()
             if "noop" in output_dict:
                 noop = output_dict["noop"]
 
@@ -191,6 +191,8 @@ class TrainerWithNoop(Trainer):
                                    " 'loss' key in the output of model.forward(inputs).")
             loss = None
         return loss, noop
+
+
 
 
     @overrides
@@ -205,13 +207,13 @@ class TrainerWithNoop(Trainer):
 
         train_loss = 0.0
         # Set the model to "train" mode.
-        self._model.train()
+        self.model.train()
 
         # Get tqdm for the training batches
-        train_generator = self._iterator(self._train_data,
-                                         num_epochs=1,
-                                         shuffle=self._shuffle)
-        num_training_batches = self._iterator.get_num_batches(self._train_data)
+        train_generator = self.iterator(self.train_data,
+                                        num_epochs=1,
+                                        shuffle=self.shuffle)
+        num_training_batches = self.iterator.get_num_batches(self.train_data)
         self._last_log = time.time()
         last_save_time = time.time()
 
@@ -220,7 +222,7 @@ class TrainerWithNoop(Trainer):
             self._batch_num_total = 0
 
         if self._histogram_interval is not None:
-            histogram_parameters = set(self._model.get_parameters_for_histogram_tensorboard_logging())
+            histogram_parameters = set(self.model.get_parameters_for_histogram_tensorboard_logging())
 
         logger.info("Training")
         train_generator_tqdm = Tqdm.tqdm(train_generator,
@@ -233,17 +235,16 @@ class TrainerWithNoop(Trainer):
             self._log_histograms_this_batch = self._histogram_interval is not None and (
                     batch_num_total % self._histogram_interval == 0)
 
-            self._optimizer.zero_grad()
-            loss, noop = self._batch_loss(batch, for_training=True)
+            self.optimizer.zero_grad()
+
+            loss, noop = self.batch_loss(batch, for_training=True)
             if noop:
                 continue
-
-
             loss.backward()
 
             train_loss += loss.item()
 
-            batch_grad_norm = self._rescale_gradients()
+            batch_grad_norm = self.rescale_gradients()
 
             # This does nothing if batch_num_total is None or you are using an
             # LRScheduler which doesn't update per batch.
@@ -255,9 +256,9 @@ class TrainerWithNoop(Trainer):
                 # We need a copy of current parameters to compute magnitude of updates,
                 # and copy them to CPU so large models won't go OOM on the GPU.
                 param_updates = {name: param.detach().cpu().clone()
-                                 for name, param in self._model.named_parameters()}
-                self._optimizer.step()
-                for name, param in self._model.named_parameters():
+                                 for name, param in self.model.named_parameters()}
+                self.optimizer.step()
+                for name, param in self.model.named_parameters():
                     param_updates[name].sub_(param.detach().cpu())
                     update_norm = torch.norm(param_updates[name].view(-1, ))
                     param_norm = torch.norm(param.view(-1, )).cpu()
@@ -265,7 +266,7 @@ class TrainerWithNoop(Trainer):
                                                        update_norm / (param_norm + 1e-7),
                                                        batch_num_total)
             else:
-                self._optimizer.step()
+                self.optimizer.step()
 
             # Update the description with the latest metrics
             metrics = self._get_metrics(train_loss, batches_this_epoch)
@@ -297,6 +298,7 @@ class TrainerWithNoop(Trainer):
 
         return self._get_metrics(train_loss, batches_this_epoch, reset=True)
 
+
     @overrides
     def _validation_loss(self) -> Tuple[float, int]:
         """
@@ -304,12 +306,12 @@ class TrainerWithNoop(Trainer):
         """
         logger.info("Validating")
 
-        self._model.eval()
+        self.model.eval()
 
         if self._validation_iterator is not None:
             val_iterator = self._validation_iterator
         else:
-            val_iterator = self._iterator
+            val_iterator = self.iterator
 
         val_generator = val_iterator(self._validation_data,
                                      num_epochs=1,
@@ -321,7 +323,7 @@ class TrainerWithNoop(Trainer):
         val_loss = 0
         for batch in val_generator_tqdm:
 
-            loss, _ = self._batch_loss(batch, for_training=False)
+            loss, _ = self.batch_loss(batch, for_training=False)
             if loss is not None:
                 # You shouldn't necessarily have to compute a loss for validation, so we allow for
                 # `loss` to be None.  We need to be careful, though - `batches_this_epoch` is
@@ -340,4 +342,4 @@ class TrainerWithNoop(Trainer):
 
 
 
-Trainer.register("noop_trainer")(TrainerWithNoop)
+Trainer.register("trainer_noop")(TrainerWithNoop)
