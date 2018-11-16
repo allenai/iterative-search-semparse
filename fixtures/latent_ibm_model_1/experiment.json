@@ -1,15 +1,20 @@
 {
   "dataset_reader": {
-    "type": "latent_alignment"
+    "type": "latent_alignment",
+    "max_logical_forms": 20
+  },
+  "validation_dataset_reader": {
+    "type": "latent_alignment",
+    "max_logical_forms": 200
   },
   "train_data_path": "fixtures/data/wikitables/alignment_preprocessed.json",
   "validation_data_path": "fixtures/data/wikitables/alignment_preprocessed.json",
   "model": {
-    "type": "latent_alignment",
+    "type": "latent_ibm_model_1",
     "utterance_embedder": {
       "tokens": {
         "type": "embedding",
-        "embedding_dim": 25,
+        "embedding_dim": 10,
         "trainable": true
       }
     },
@@ -17,9 +22,14 @@
       "lf_tokens": {
         "type": "embedding",
         "vocab_namespace": "lf_tokens",
-        "embedding_dim": 25,
+        "embedding_dim": 10,
         "trainable": true
       }
+    },
+    "translation_layer": {
+      "type": "bilinear",
+      "matrix_1_dim": 10,
+      "matrix_2_dim": 10
     }
   },
   "iterator": {

@@ -18,11 +18,9 @@ logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 @DatasetReader.register("latent_alignment")
 class LatentAlignmentDatasetReader(DatasetReader):
     def __init__(self,
-                 dpd_directory: str,
                  max_logical_forms: int = 500,
                  lazy: bool = False) -> None:
         super().__init__(lazy)
-        self._dpd_directory = dpd_directory
         self._max_logical_forms = max_logical_forms
         self._utterance_token_indexers = {'tokens': SingleIdTokenIndexer(namespace='tokens')}
         self._logical_form_token_indexers = {'lf_tokens': SingleIdTokenIndexer(namespace='lf_tokens')}
