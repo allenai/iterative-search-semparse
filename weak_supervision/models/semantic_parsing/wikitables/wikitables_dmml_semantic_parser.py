@@ -59,6 +59,9 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
         If ``True``, we will compute a max similarity between a question token and the `neighbors`
         of an entity as a component of the linking scores.  This is meant to capture the same kind
         of information as the ``related_column`` feature. Passed to super class.
+    sampling_steps: ``int``, optional (default=0)
+        If greater than 0, at training time the first sampling_steps steps are decoded via sampling
+        and the remaining max_decoding_steps - sampling_steps steps are decoded using beam search.
     dropout : ``float``, optional (default=0)
         If greater than 0, we will apply dropout with this probability after all encoders (pytorch
         LSTMs do not apply dropout to their last layer). Passed to super class.
