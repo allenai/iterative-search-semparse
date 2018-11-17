@@ -94,7 +94,7 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
                  add_action_bias: bool = True,
                  normalize_beam_score_by_length: bool = False,
                  use_neighbor_similarity_for_linking: bool = False,
-                 use_sampling: bool = False,
+                 sampling_steps: int = 0,
                  dropout: float = 0.0,
                  num_linking_features: int = 10,
                  rule_namespace: str = 'rule_labels',
@@ -130,7 +130,7 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
                                                        mixture_feedforward=mixture_feedforward,
                                                        dropout=dropout)
 
-        self.use_sampling = use_sampling
+        self.sampling_steps = sampling_steps
         self.noop = 0.0
         self.search_hits = 0.0
         if mml_model_file is not None:
@@ -246,17 +246,16 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
             initial_state.debug_info = [[] for _ in range(batch_size)]
 
         if self.training:
-            if self.use_sampling:
-                outputs = self._decoder_trainer.sample(initial_state,  # type: ignore
-                                               self._decoder_step, partial(self._get_state_cost, world))
-            else:
-                outputs = self._decoder_trainer.beam_search(initial_state,
-                                                            self._decoder_step, partial(self._get_state_cost, world))
-
+            outputs = self._decoder_trainer.decode(self.sampling_steps, 
+                                                   initial_state,  # type: ignore
+                                                   self._decoder_step, 
+                                                   partial(self._get_state_cost, world))
         else:
-            outputs = self._decoder_trainer.beam_search(initial_state,
-                                                        self._decoder_step, partial(self._get_state_cost, world))
-
+            # at test time, use vanilla beam search only
+            outputs = self._decoder_trainer.decode(self._max_decoding_steps,
+                                                   initial_state,
+                                                   self._decoder_step, 
+                                                   partial(self._get_state_cost, world))
 
         best_final_states = outputs['best_final_states']
         self.search_hits += outputs["search_hits"]
