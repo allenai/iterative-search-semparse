@@ -120,8 +120,7 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
                  DynamicMaximumMarginalLikelihood(beam_size=decoder_beam_size,
                                                   normalize_by_length=normalize_beam_score_by_length,
                                                   max_decoding_steps=self._max_decoding_steps,
-                                                  max_num_finished_states=decoder_num_finished_states,
-                                                  sample_states=use_sampling)
+                                                  max_num_finished_states=decoder_num_finished_states)
         self._decoder_step = LinkingTransitionFunction(encoder_output_dim=self._encoder.get_output_dim(),
                                                        action_embedding_dim=action_embedding_dim,
                                                        input_attention=attention,
@@ -130,6 +129,8 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
                                                        add_action_bias=self._add_action_bias,
                                                        mixture_feedforward=mixture_feedforward,
                                                        dropout=dropout)
+
+        self.use_sampling = use_sampling
         self.noop = 0.0
         self.search_hits = 0.0
         if mml_model_file is not None:
@@ -244,8 +245,18 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
         if not self.training:
             initial_state.debug_info = [[] for _ in range(batch_size)]
 
-        outputs = self._decoder_trainer.decode(initial_state,  # type: ignore
+        if self.training:
+            if self.use_sampling:
+                outputs = self._decoder_trainer.sample(initial_state,  # type: ignore
                                                self._decoder_step, partial(self._get_state_cost, world))
+            else:
+                outputs = self._decoder_trainer.beam_search(initial_state,
+                                                            self._decoder_step, partial(self._get_state_cost, world))
+
+        else:
+            outputs = self._decoder_trainer.beam_search(initial_state,
+                                                        self._decoder_step, partial(self._get_state_cost, world))
+
 
         best_final_states = outputs['best_final_states']
         self.search_hits += outputs["search_hits"]
