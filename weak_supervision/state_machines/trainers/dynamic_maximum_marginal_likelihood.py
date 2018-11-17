@@ -118,7 +118,7 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
                              transition_function: TransitionFunction,
                              max_steps: int) -> List[StateType]:
         finished_states = []
-        states = initial_state
+        states = initial_states
         num_steps = 0
         while states and num_steps < max_steps:
             next_states = []
