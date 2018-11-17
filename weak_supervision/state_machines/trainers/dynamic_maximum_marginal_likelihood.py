@@ -34,38 +34,42 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
                  normalize_by_length: bool,
                  max_decoding_steps: int,
                  max_num_decoded_sequences: int = 1,
-                 sample_states: int = 0,
                  max_num_finished_states: int = None) -> None:
         self._beam_size = beam_size
         self._normalize_by_length = normalize_by_length
         self._max_decoding_steps = max_decoding_steps
         self._max_num_decoded_sequences = max_num_decoded_sequences
         self._max_num_finished_states = max_num_finished_states
-        self.sample_states = sample_states
 
-    def sample(self,
+
+    def decode(self,
+               sampling_steps: int,
                initial_state: State,
                transition_function: TransitionFunction,
                supervision: Callable[[StateType], torch.Tensor]) -> Dict[str, torch.Tensor]:
         reward_function = supervision
+        
         finished_states = []
+        unfinished_states = []
+        # first perform sampling for the first sampling_steps steps
         for _ in range(self._max_num_finished_states):
-            finished_states.extend(self._sample_states(initial_state, transition_function, max_steps=self._max_decoding_steps))
+            curr_unfinished_states, curr_finished_states = self._sample_states(initial_state, transition_function, max_steps=sampling_steps)
+            finished_states.extend(curr_finished_states)
+            unfinished_states.extend(curr_unfinished_states)
 
-        return self._process(initial_state, finished_states, reward_function)
-
-    def beam_search(self,
-               initial_state: State,
-               transition_function: TransitionFunction,
-               supervision: Callable[[StateType], torch.Tensor]) -> Dict[str, torch.Tensor]:
-        reward_function = supervision
-        finished_states = self._get_finished_states(initial_state, transition_function)
-
-        return self._process(initial_state, finished_states, reward_function)
+        if sampling_steps == self._max_decoding_steps:
+            return self._process(initial_state, finished_states, reward_function)
+        else:
+            # for the remaining unfinished steps, use beam search!
+            # NOTE: since sampling produces only 1 state per batch instance, we do not need to sort them
+            assert self._max_decoding_steps > sampling_steps
+            finished_states.extend(self._get_finished_states(unfinished_states, transition_function, self._max_decoding_steps - sampling_steps))
+            return self._process(initial_state, finished_states, reward_function)
 
 
 
-    def _process(initial_state: State, 
+    def _process(self,
+                 initial_state: State, 
                  finished_states: List[State], 
                  reward_function: Callable[[StateType], torch.Tensor]):
         states_by_batch_index: Dict[int, List[State]] = defaultdict(list)
@@ -87,9 +91,9 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
                 'search_hits' : search_hits}
 
     def _sample_states(self,
-                initial_state: State,
-                transition_function: TransitionFunction,
-                max_steps: int) -> List[StateType]:
+                       initial_state: State,
+                       transition_function: TransitionFunction,
+                       max_steps: int) -> List[StateType]:
 
         finished_states = []
         states = [initial_state]
@@ -97,7 +101,6 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
         while states and num_steps < max_steps:
             next_states = []
             grouped_state = states[0].combine_states(states)
-            # These states already come sorted.
             for next_state in transition_function.take_step(grouped_state, sample_states=True):
                 if next_state.is_finished():
                     finished_states.append(next_state)
@@ -107,16 +110,17 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
             states = next_states
             num_steps += 1
 
-        return finished_states
+        return states, finished_states
 
 
     def _get_finished_states(self,
-                             initial_state: State,
-                             transition_function: TransitionFunction) -> List[StateType]:
+                             initial_states: List[State],
+                             transition_function: TransitionFunction,
+                             max_steps: int) -> List[StateType]:
         finished_states = []
-        states = [initial_state]
+        states = initial_state
         num_steps = 0
-        while states and num_steps < self._max_decoding_steps:
+        while states and num_steps < max_steps:
             next_states = []
             grouped_state = states[0].combine_states(states)
             # These states already come sorted.
