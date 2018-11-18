@@ -15,6 +15,8 @@ from allennlp.modules import Attention, FeedForward, Seq2SeqEncoder, Seq2VecEnco
 from allennlp.semparse.worlds import WikiTablesWorld
 from allennlp.state_machines.states import GrammarBasedState
 from weak_supervision.state_machines.trainers import DynamicMaximumMarginalLikelihood
+from weak_supervision.state_machines.trainers import MaxMarginTrainer
+
 from weak_supervision.state_machines.transition_functions import LinkingTransitionFunction
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -83,6 +85,7 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
         If you want to initialize this model using weights from another model trained using MML,
         pass the path to the ``model.tar.gz`` file of that model here.
     """
+
     def __init__(self,
                  vocab: Vocabulary,
                  question_embedder: TextFieldEmbedder,
@@ -98,6 +101,7 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
                  normalize_beam_score_by_length: bool = False,
                  use_neighbor_similarity_for_linking: bool = False,
                  sampling_steps: int = 0,
+                 margin_loss: bool = False,
                  dropout: float = 0.0,
                  num_linking_features: int = 10,
                  rule_namespace: str = 'rule_labels',
@@ -118,12 +122,18 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
                          tables_directory=tables_directory)
         # Not sure why mypy needs a type annotation for this!
 
-
-        self._decoder_trainer: DynamicMaximumMarginalLikelihood = \
-                 DynamicMaximumMarginalLikelihood(beam_size=decoder_beam_size,
-                                                  normalize_by_length=normalize_beam_score_by_length,
-                                                  max_decoding_steps=self._max_decoding_steps,
-                                                  max_num_finished_states=decoder_num_finished_states)
+        if margin_loss:
+            self._decoder_trainer: MaxMarginTrainer = \
+                MaxMarginTrainer(beam_size=decoder_beam_size,
+                                 normalize_by_length=normalize_beam_score_by_length,
+                                 max_decoding_steps=self._max_decoding_steps,
+                                 max_num_finished_states=decoder_num_finished_states)
+        else:
+            self._decoder_trainer: DynamicMaximumMarginalLikelihood = \
+                DynamicMaximumMarginalLikelihood(beam_size=decoder_beam_size,
+                                                 normalize_by_length=normalize_beam_score_by_length,
+                                                 max_decoding_steps=self._max_decoding_steps,
+                                                 max_num_finished_states=decoder_num_finished_states)
         self._decoder_step = LinkingTransitionFunction(encoder_output_dim=self._encoder.get_output_dim(),
                                                        action_embedding_dim=action_embedding_dim,
                                                        input_attention=attention,
@@ -153,7 +163,7 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
         archived_parameters = dict(archive.model.named_parameters())
         question_embedder_weight = "_question_embedder.token_embedder_tokens.weight"
         if question_embedder_weight not in archived_parameters or \
-           question_embedder_weight not in model_parameters:
+                question_embedder_weight not in model_parameters:
             raise RuntimeError("When initializing model weights from an MML model, we need "
                                "the question embedder to be a TokenEmbedder using namespace called "
                                "tokens.")
@@ -249,15 +259,15 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
             initial_state.debug_info = [[] for _ in range(batch_size)]
 
         if self.training:
-            outputs = self._decoder_trainer.decode(self.sampling_steps, 
+            outputs = self._decoder_trainer.decode(self.sampling_steps,
                                                    initial_state,  # type: ignore
-                                                   self._decoder_step, 
+                                                   self._decoder_step,
                                                    partial(self._get_state_cost, world))
         else:
             # at test time, use vanilla beam search only
             outputs = self._decoder_trainer.decode(self._max_decoding_steps,
                                                    initial_state,
-                                                   self._decoder_step, 
+                                                   self._decoder_step,
                                                    partial(self._get_state_cost, world))
 
         best_final_states = outputs['best_final_states']
@@ -272,7 +282,6 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
                                              metadata,
                                              outputs)
         return outputs
-
 
     def _get_state_cost(self, worlds: List[WikiTablesWorld], state: GrammarBasedState) -> float:
         # returns True if the logical form gives the correct answer

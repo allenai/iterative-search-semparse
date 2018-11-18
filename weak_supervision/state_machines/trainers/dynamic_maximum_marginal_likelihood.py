@@ -68,7 +68,7 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
 
 
 
-    def _process(self,
+    def process(self,
                  initial_state: State, 
                  finished_states: List[State], 
                  reward_function: Callable[[StateType], torch.Tensor]):
@@ -93,7 +93,7 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
     def _sample_states(self,
                        initial_state: State,
                        transition_function: TransitionFunction,
-                       max_steps: int) -> List[StateType]:
+                       max_steps: int):
 
         finished_states = []
         states = [initial_state]
