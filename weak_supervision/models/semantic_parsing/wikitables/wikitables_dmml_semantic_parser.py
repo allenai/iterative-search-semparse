@@ -16,6 +16,7 @@ from allennlp.semparse.worlds import WikiTablesWorld
 from allennlp.state_machines.states import GrammarBasedState
 from weak_supervision.state_machines.trainers import DynamicMaximumMarginalLikelihood
 from weak_supervision.state_machines.trainers import MaxMarginTrainer
+from weak_supervision.state_machines.trainers import MaverTrainer
 
 from weak_supervision.state_machines.transition_functions import LinkingTransitionFunction
 
@@ -101,7 +102,7 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
                  normalize_beam_score_by_length: bool = False,
                  use_neighbor_similarity_for_linking: bool = False,
                  sampling_steps: int = 0,
-                 margin_loss: bool = False,
+                 loss_fn: str = 'dynamic_mml',
                  dropout: float = 0.0,
                  num_linking_features: int = 10,
                  rule_namespace: str = 'rule_labels',
@@ -122,18 +123,27 @@ class WikiTablesDMMLSemanticParser(WikiTablesSemanticParser):
                          tables_directory=tables_directory)
         # Not sure why mypy needs a type annotation for this!
 
-        if margin_loss:
+        if loss_fn == 'max_margin':
             self._decoder_trainer: MaxMarginTrainer = \
                 MaxMarginTrainer(beam_size=decoder_beam_size,
                                  normalize_by_length=normalize_beam_score_by_length,
                                  max_decoding_steps=self._max_decoding_steps,
                                  max_num_finished_states=decoder_num_finished_states)
-        else:
+        elif loss_fn == 'maver':
+            self._decoder_trainer: MaverTrainer = \
+                MaverTrainer(beam_size=decoder_beam_size,
+                             normalize_by_length=normalize_beam_score_by_length,
+                             max_decoding_steps=self._max_decoding_steps,
+                             max_num_finished_states=decoder_num_finished_states)
+        elif loss_fn == 'dynamic_mml':
             self._decoder_trainer: DynamicMaximumMarginalLikelihood = \
                 DynamicMaximumMarginalLikelihood(beam_size=decoder_beam_size,
                                                  normalize_by_length=normalize_beam_score_by_length,
                                                  max_decoding_steps=self._max_decoding_steps,
                                                  max_num_finished_states=decoder_num_finished_states)
+        else:
+            raise Exception('unknown loss function')
+
         self._decoder_step = LinkingTransitionFunction(encoder_output_dim=self._encoder.get_output_dim(),
                                                        action_embedding_dim=action_embedding_dim,
                                                        input_attention=attention,
