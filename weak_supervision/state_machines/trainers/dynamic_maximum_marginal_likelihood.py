@@ -58,13 +58,13 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
             unfinished_states.extend(curr_unfinished_states)
 
         if sampling_steps == self._max_decoding_steps:
-            return self._process(initial_state, finished_states, reward_function)
+            return self.process(initial_state, finished_states, reward_function)
         else:
             # for the remaining unfinished steps, use beam search!
             # NOTE: since sampling produces only 1 state per batch instance, we do not need to sort them
             assert self._max_decoding_steps > sampling_steps
             finished_states.extend(self._get_finished_states(unfinished_states, transition_function, self._max_decoding_steps - sampling_steps))
-            return self._process(initial_state, finished_states, reward_function)
+            return self.process(initial_state, finished_states, reward_function)
 
 
 

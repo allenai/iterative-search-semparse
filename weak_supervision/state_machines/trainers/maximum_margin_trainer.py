@@ -38,14 +38,20 @@ class MaxMarginTrainer(DynamicMaximumMarginalLikelihood):
         loss = initial_state.score[0].new_zeros(1)
         search_hits = 0.0
         for instance_states in states_by_batch_index.values():
-            all_correct_scores = torch.cat([state.score[0].view(-1) for state in instance_states if reward_function(state) == 1])
-            best_score, _ = torch.max(all_correct_scores, dim = 0)
+            all_correct_scores = [state.score[0].view(-1) for state in instance_states if reward_function(state) == 1]
+            if all_correct_scores:
+                all_correct_scores = torch.cat(all_correct_scores)
+                best_score, _ = torch.max(all_correct_scores, dim = 0)
+                best_score += 1
+                search_hits += 1
+            else:
+                continue 
 
-            all_constraints = torch.cat([ (state.score[0] - best_score + reward_function(state) - 1).view(-1)
+            all_constraints = torch.cat([ (state.score[0] - best_score + reward_function(state)).view(-1)
                                           for state in instance_states])
 
             most_violating_score, _ = torch.max(all_constraints, dim =0)
-            loss += -1.0*torch.clamp(most_violating_score, min=0)
+            loss += torch.clamp(most_violating_score, min=0)
 
 
         return {'loss' : loss / len(states_by_batch_index),
