@@ -42,12 +42,11 @@ class MaxMarginTrainer(DynamicMaximumMarginalLikelihood):
             if all_correct_scores:
                 all_correct_scores = torch.cat(all_correct_scores)
                 best_score, _ = torch.max(all_correct_scores, dim = 0)
-                best_score += 1
                 search_hits += 1
             else:
                 continue 
 
-            all_constraints = torch.cat([ (state.score[0] - best_score + reward_function(state)).view(-1)
+            all_constraints = torch.cat([ (state.score[0] - best_score + 1 - reward_function(state)).view(-1)
                                           for state in instance_states])
 
             most_violating_score, _ = torch.max(all_constraints, dim =0)
