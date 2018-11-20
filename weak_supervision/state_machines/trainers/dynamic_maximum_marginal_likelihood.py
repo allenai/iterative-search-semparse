@@ -91,7 +91,11 @@ class DynamicMaximumMarginalLikelihood(DecoderTrainer[Callable[[StateType], torc
             if scores:
                 loss += -nn_util.logsumexp(torch.cat(scores))
                 search_hits += 1
-        return {'loss' : loss / len(states_by_batch_index),
+
+        # it is possible for beam search to not return any finished states
+        if states_by_batch_index:
+            loss /= len(states_by_batch_index)
+        return {'loss' : loss,
                 'best_final_states' : self._get_best_final_states(finished_states),
                 'noop' : search_hits == 0.0,
                 'search_hits' : search_hits}
