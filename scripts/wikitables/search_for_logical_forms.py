@@ -8,11 +8,11 @@ import gzip
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir)))))
 
-from allennlp.semparse.contexts import TableQuestionContext
-from allennlp.semparse.worlds import WikiTablesVariableFreeWorld
 from allennlp.data.tokenizers import WordTokenizer
 from allennlp.data.dataset_readers.semantic_parsing.wikitables import util as wikitables_util
 
+from weak_supervision.semparse.contexts import TableQuestionContext
+from weak_supervision.semparse.worlds import WikiTablesVariableFreeWorld
 from weak_supervision.semparse import ActionSpaceWalker
 
 def search(tables_directory: str,

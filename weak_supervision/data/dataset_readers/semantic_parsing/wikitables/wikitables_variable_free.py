@@ -21,10 +21,10 @@ from allennlp.data.tokenizers.tokenizer import Tokenizer
 from allennlp.data.tokenizers.word_splitter import SpacyWordSplitter
 from allennlp.data.token_indexers import SingleIdTokenIndexer
 from allennlp.data.token_indexers.token_indexer import TokenIndexer
-from allennlp.semparse.contexts import TableQuestionContext
-from allennlp.semparse.worlds import WikiTablesVariableFreeWorld
 from allennlp.semparse.worlds.world import ParsingError
 
+from weak_supervision.semparse.contexts import TableQuestionContext
+from weak_supervision.semparse.worlds import WikiTablesVariableFreeWorld
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 

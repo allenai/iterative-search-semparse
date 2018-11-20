@@ -7,12 +7,12 @@ from allennlp.data import Vocabulary
 from allennlp.data.fields.production_rule_field import ProductionRuleArray
 from allennlp.models.model import Model
 from allennlp.modules import Attention, FeedForward, Seq2SeqEncoder, Seq2VecEncoder, TextFieldEmbedder
-from allennlp.semparse.worlds import WikiTablesVariableFreeWorld
 from allennlp.state_machines import BeamSearch
 from allennlp.state_machines.states import GrammarBasedState
 from allennlp.state_machines.trainers import MaximumMarginalLikelihood
 from allennlp.state_machines.transition_functions import LinkingTransitionFunction
 
+from weak_supervision.semparse.worlds import WikiTablesVariableFreeWorld
 from weak_supervision.models.semantic_parsing.wikitables_variable_free.wikitables_variable_free_parser \
         import WikiTablesVariableFreeParser
 

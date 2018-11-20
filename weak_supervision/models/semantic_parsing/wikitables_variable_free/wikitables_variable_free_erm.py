@@ -11,11 +11,11 @@ from allennlp.data.fields.production_rule_field import ProductionRule
 from allennlp.models.archival import load_archive, Archive
 from allennlp.models.model import Model
 from allennlp.modules import Attention, FeedForward, Seq2SeqEncoder, Seq2VecEncoder, TextFieldEmbedder
-from allennlp.semparse.worlds import WikiTablesVariableFreeWorld
 from allennlp.state_machines.states import CoverageState, ChecklistStatelet
 from allennlp.state_machines.trainers import ExpectedRiskMinimization
 from allennlp.training.metrics import Average
 
+from weak_supervision.semparse.worlds import WikiTablesVariableFreeWorld
 from weak_supervision.state_machines.transition_functions import LinkingCoverageTransitionFunction
 from weak_supervision.models.semantic_parsing.wikitables_variable_free.wikitables_variable_free_parser \
         import WikiTablesVariableFreeParser
@@ -376,7 +376,8 @@ class WikiTablesVariableFreeErm(WikiTablesVariableFreeParser):
         target_values = state.extras[batch_index]
         evaluation = False
         try:
-            executor_logger = logging.getLogger('allennlp.semparse.executors.wikitables_variable_free_executor')
+            executor_logger = \
+                    logging.getLogger('weak_supervision.semparse.executors.wikitables_variable_free_executor')
             executor_logger.setLevel(logging.ERROR)
             evaluation = world.evaluate_logical_form(logical_form, target_values)
         except IndexError:

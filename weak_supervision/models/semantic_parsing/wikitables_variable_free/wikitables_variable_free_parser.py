@@ -14,10 +14,10 @@ from allennlp.nn import util
 from allennlp.semparse import ParsingError
 from allennlp.semparse.type_declarations import type_declaration
 from allennlp.semparse.type_declarations.type_declaration import START_SYMBOL
-from allennlp.semparse.worlds import WikiTablesVariableFreeWorld
 from allennlp.state_machines.states import GrammarBasedState, GrammarStatelet, RnnStatelet
 from allennlp.training.metrics import Average
 
+from weak_supervision.semparse.worlds import WikiTablesVariableFreeWorld
 
 class WikiTablesVariableFreeParser(Model):
     """

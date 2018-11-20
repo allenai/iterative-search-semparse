@@ -2,8 +2,8 @@
 
 from allennlp.common import Params
 from allennlp.common.testing import AllenNlpTestCase
-from allennlp.semparse.worlds import WikiTablesVariableFreeWorld
 
+from weak_supervision.semparse.worlds import WikiTablesVariableFreeWorld
 from weak_supervision.data.dataset_readers import WikiTablesVariableFreeDatasetReader
 
 def assert_dataset_correct(dataset):
@@ -24,12 +24,6 @@ def assert_dataset_correct(dataset):
                        "part", "of", "the", "usl", "a", "-", "league", "?"]
     assert [t.text for t in instance.fields["question"].tokens] == question_tokens
 
-    knowledge_graph = instance.fields["table"].knowledge_graph
-    entities = knowledge_graph.entities
-    assert sorted(entities) == ['-1', 'date_column:year', 'number_column:avg_attendance',
-                                'number_column:division', 'string:usl_a_league',
-                                'string_column:league', 'string_column:open_cup',
-                                'string_column:playoffs', 'string_column:regular_season']
 
     # The content of this will be tested indirectly by checking the actions; we'll just make
     # sure we get a WikiTablesWorld object in here.
@@ -42,7 +36,7 @@ def assert_dataset_correct(dataset):
     # be parsed, or the action sequences can't be mapped correctly, the DatasetReader will skip the
     # logical form, log an error, and keep going (i.e., it won't crash).
     num_action_sequences = len(instance.fields["target_action_sequences"].field_list)
-    assert num_action_sequences == 2
+    assert num_action_sequences == 10
 
     # We should have sorted the logical forms by length.  This is the action sequence
     # corresponding to the shortest logical form in the examples _by tree size_, which is _not_ the
@@ -51,19 +45,17 @@ def assert_dataset_correct(dataset):
     action_sequence = instance.fields["target_action_sequences"].field_list[0]
     action_indices = [l.sequence_index for l in action_sequence.field_list]
     actions = [actions[i] for i in action_indices]
-    assert actions == [
-            '@start@ -> s',
-            's -> [<r,<g,s>>, r, m]',
-            '<r,<g,s>> -> select',
-            'r -> [<r,r>, r]',
-            '<r,r> -> last',
-            'r -> [<r,<t,<s,r>>>, r, t, s]',
-            '<r,<t,<s,r>>> -> filter_in',
-            'r -> all_rows',
-            't -> string_column:league',
-            's -> string:usl_a_league',
-            'm -> date_column:year'
-            ]
+    assert actions == ['@start@ -> n',
+                       'n -> [<r,<f,n>>, r, f]',
+                       '<r,<f,n>> -> average',
+                       'r -> [<r,r>, r]',
+                       '<r,r> -> last',
+                       'r -> [<r,<t,<s,r>>>, r, t, s]',
+                       '<r,<t,<s,r>>> -> filter_in',
+                       'r -> all_rows',
+                       't -> string_column:league',
+                       's -> string:usl_a_league',
+                       'f -> number_column:year']
 
 
 class WikiTablesVariableFreeDatasetReaderTest(AllenNlpTestCase):
