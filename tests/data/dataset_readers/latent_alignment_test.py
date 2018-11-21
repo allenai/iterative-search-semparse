@@ -1,17 +1,12 @@
 # pylint: disable=invalid-name,no-self-use
 
 from allennlp.common.testing import AllenNlpTestCase
-from allennlp.common import Params
 from weak_supervision.data.dataset_readers.semantic_parsing.latent_alignment import LatentAlignmentDatasetReader
 
 
 class TestLatentAlignmentDatasetReader(AllenNlpTestCase):
     def test_reader_can_read(self):
-        params = {
-                'lazy': False,
-                'dpd_directory': "fixtures/data/wikitables/dpd_output",
-                }
-        reader = LatentAlignmentDatasetReader.from_params(Params(params))
+        reader = LatentAlignmentDatasetReader()
         dataset = reader.read("fixtures/data/wikitables/alignment_preprocessed.json")
         assert len(dataset) == 2
 
