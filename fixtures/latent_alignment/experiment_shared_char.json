@@ -1,0 +1,79 @@
+{
+  "dataset_reader": {
+    "type": "latent_alignment",
+    "max_logical_forms": 20,
+    "utterance_token_indexers": {
+      "tokens": {
+        "type": "single_id",
+        "lowercase_tokens": true
+      },
+      "token_characters": {
+        "type": "characters"
+      }
+    },
+    "logical_form_token_indexers": {
+      "lf_tokens": {
+        "type": "single_id",
+        "lowercase_tokens": true
+      },
+      "lf_token_characters": {
+        "type": "characters"
+      }
+    }
+  },
+  "train_data_path": "fixtures/data/wikitables/alignment_preprocessed.json",
+  "validation_data_path": "fixtures/data/wikitables/alignment_preprocessed.json",
+  "model": {
+    "type": "latent_alignment_shared_char",
+    "logical_form_embedder": {
+      "lf_tokens": {
+        "type": "embedding",
+        "embedding_dim": 100,
+        "trainable": true
+      }
+    },
+    "utterance_embedder": {
+      "tokens": {
+        "type": "embedding",
+        "embedding_dim": 100,
+        "trainable": true
+      }
+    },
+
+    "char_embedder": {
+      "token_characters": {
+        "type": "character_encoding",
+        "embedding": {
+         "num_embeddings": 262,
+         "embedding_dim": 16
+        },
+        "encoder": {
+         "type": "cnn",
+         "embedding_dim": 16,
+         "num_filters": 50,
+         "ngram_filter_sizes": [3]
+        }
+      }
+    },
+
+    "utterance_encoder": {
+      "type": "pass_through",
+      "input_dim": 150
+    }
+  },
+  "iterator": {
+    "type": "bucket",
+    "sorting_keys": [["logical_forms", "num_fields"], ["logical_forms", "list_num_tokens"]],
+    "padding_noise": 0.0,
+    "batch_size" : 2
+  },
+  "trainer": {
+    "num_epochs": 2,
+    "patience": 10,
+    "cuda_device": -1,
+    "optimizer": {
+      "type": "sgd",
+      "lr": 0.01
+    }
+  }
+}

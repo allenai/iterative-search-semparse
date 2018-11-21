@@ -12,8 +12,8 @@ from allennlp.nn import InitializerApplicator, RegularizerApplicator
 from allennlp.nn import util
 
 
-@Model.register("latent_alignment")
-class LatentAlignment(Model):
+@Model.register("latent_alignment_dam")
+class LatentAlignmentDAM(Model):
     def __init__(self, vocab: Vocabulary,
                  utterance_embedder: TextFieldEmbedder,
                  logical_form_embedder: TextFieldEmbedder,
@@ -29,7 +29,7 @@ class LatentAlignment(Model):
 
         self.normalize_by_len = normalize_by_len
         self.translation_layer = Linear(self.logical_form_embedder.get_output_dim(),
-                                        self.utterance_encoder.get_output_dim())
+                                        self.utterance_encoder.get_output_dim(), bias=False)
 
         self.mean_ranks = 0.0
         self.accuracy = 0.0
@@ -58,34 +58,34 @@ class LatentAlignment(Model):
         embedded_utterance = self.utterance_embedder(utterance)
         utterance_mask = util.get_text_field_mask(utterance)
         encoded_utterance = self.utterance_encoder(embedded_utterance, utterance_mask)
-        # Because we're just summing everything in the end, we can do the sum upfront to save some
-        # time.
-        # (batch_size, utterance_embedding_dim)
-        encoded_utterance = encoded_utterance.sum(dim=1)
-        # (batch_size, num_logical_forms, num_lf_tokens, lf_embedding_dim)
-        embedded_logical_forms = self.logical_form_embedder(logical_forms, num_wrapping_dims=1)
+
         # (batch_size, num_logical_forms, num_lf_tokens)
         logical_form_token_mask = util.get_text_field_mask(logical_forms, num_wrapping_dims=1)
-        # (batch_size, num_logical_forms)
-        logical_form_mask = logical_form_token_mask.sum(dim=-1).clamp(max=1)
-        # (batch_size, num_logical_forms, lf_embedding_dim)
-        encoded_logical_forms = embedded_logical_forms.sum(dim=2)
-        # (batch_size, num_logical_forms, utterance_embedding_dim)
-        predicted_embeddings = self.translation_layer(encoded_logical_forms)
+        # (batch_size, num_logical_forms, num_lf_tokens, lf_embedding_dim)
+        embedded_logical_forms = self.logical_form_embedder(logical_forms, num_wrapping_dims=1)
 
-        # (batch_size, num_logical_forms)
-        similarities = torch.nn.functional.cosine_similarity(predicted_embeddings,
-                                                             encoded_utterance.unsqueeze(1),
-                                                             dim=2)
-        # to avoid division by zero, add a 1
-        logical_form_lens = 1.0 + torch.sum(logical_form_token_mask, dim=-1, dtype=similarities.dtype)
-        if self.normalize_by_len:
-            similarities = similarities / logical_form_lens
-            # Make sure masked logical forms aren't included in the max.
-        similarities = util.replace_masked_values(similarities, logical_form_mask, -1e7)
+        embedded_logical_forms = self.translation_layer(embedded_logical_forms)
+
+        # (batch_size, num_logical_forms, num_lf_tokens, num_utterance_tokens)
+        scores = torch.nn.functional.cosine_similarity(encoded_utterance[:, None, None, :, :],
+                                                       embedded_logical_forms[:, :, :, None, :], dim=-1)
+        # align every token in the LF to a token in the utterance, also taking
+        # care of masking i.e. padded tokens in LF shouldn't have any alignment scores
+        # (batch_size, num_logical_forms, num_lf_tokens)
+        aligned_scores, _ = scores.max(dim=-1)
+
+        aligned_scores = util.replace_masked_values(aligned_scores, logical_form_token_mask, 0)
+        # (batch_size, num_logical_forms) average for each logical form
+        # add 1 to avoid overflow
+        lf_lens = 1.0 +  logical_form_token_mask.sum(dim=-1, dtype=embedded_logical_forms.dtype)
+        scores = aligned_scores.sum(dim=-1) / lf_lens
+
+        # Make sure masked logical forms aren't included in the max.
+        logical_form_mask = logical_form_token_mask.sum(dim=-1).clamp(max=1)
+        similarities = util.replace_masked_values(scores, logical_form_mask, -1e7)
 
         ranks = (similarities[:, 0].unsqueeze(1) < similarities)
-        curr_ranks = ranks.sum(dim=-1)  # (32,) ranks
+        curr_ranks = ranks.sum(dim=-1) # (32,) ranks
         hits = [(curr_ranks < k).sum().cpu().data.numpy() for k in [3, 5, 10]]
         self.hits3 += hits[0]
         self.hits5 += hits[1]
@@ -102,18 +102,17 @@ class LatentAlignment(Model):
         for instance_most_similar, instance_logical_forms in zip(most_similar.tolist(), logical_form_strings):
             most_similar_strings.append(instance_logical_forms[instance_most_similar])
         return {"loss": loss, "most_similar": most_similar_strings, "utterance": utterance_string,
-                "all_similarities": similarities}
+                "all_similarities" : similarities}
 
     @overrides
     def get_metrics(self, reset: bool = False):
         if self.batches == 0:
-            return {'mean_rank': -1, 'accuracy': -1, 'hits3': -1, 'hits5': -1, 'hits10': -1}
+            return {'mean_rank' : -1, 'accuracy' : -1, 'hits3' : -1, 'hits5' : -1, 'hits10' : -1}
         mean_rank = self.mean_ranks / self.batches
         mean_accuracy = self.accuracy / self.batches
         mean_hits3 = self.hits3 / self.batches
         mean_hits5 = self.hits5 / self.batches
         mean_hits10 = self.hits10 / self.batches
-
         if reset:
             self.mean_ranks = 0.0
             self.accuracy = 0.0
@@ -121,5 +120,5 @@ class LatentAlignment(Model):
             self.hits5 = 0.0
             self.hits10 = 0.0
             self.batches = 0.0
-        return {'mean_rank': mean_rank, 'mean_accuracy': mean_accuracy, 'hits3': mean_hits3, 'hits5': mean_hits5,
-                'hits10': mean_hits10}
+        return {'mean_rank' : mean_rank, 'mean_accuracy' : mean_accuracy, 'hits3' : mean_hits3,
+                'hits5' : mean_hits5, 'hits10' : mean_hits10}

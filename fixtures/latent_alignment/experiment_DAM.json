@@ -10,7 +10,8 @@
   "train_data_path": "fixtures/data/wikitables/alignment_preprocessed.json",
   "validation_data_path": "fixtures/data/wikitables/alignment_preprocessed.json",
   "model": {
-    "type": "latent_alignment",
+    "type": "latent_alignment_dam",
+    "normalize_by_len" : true,
     "utterance_embedder": {
       "tokens": {
         "type": "embedding",

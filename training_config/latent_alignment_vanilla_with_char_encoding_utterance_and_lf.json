@@ -1,0 +1,89 @@
+{
+  "dataset_reader": {
+    "type": "latent_alignment",
+    "max_logical_forms": 200,
+    "utterance_token_indexers": {
+      "tokens": {
+        "type": "single_id",
+        "lowercase_tokens": true
+      },
+      "token_characters": {
+        "type": "characters"
+      }
+    },
+    "logical_form_token_indexers": {
+      "lf_tokens": {
+        "type": "single_id",
+        "lowercase_tokens": true
+      },
+      "lf_token_characters": {
+        "type": "characters"
+      }
+    }
+  },
+  "train_data_path": "/u/murtyjay/allennlp_fork/train_all.json",
+  "validation_data_path": "/u/murtyjay/allennlp_fork/dev_small.json",
+  "model": {
+    "type": "latent_alignment",
+    "logical_form_embedder": {
+      "lf_tokens": {
+        "type": "embedding",
+        "embedding_dim": 50,
+        "trainable": true
+      },
+      "lf_token_characters": {
+        "type": "character_encoding",
+        "embedding": {
+         "num_embeddings": 262,
+         "embedding_dim": 16
+        },
+        "encoder": {
+         "type": "cnn",
+         "embedding_dim": 16,
+         "num_filters": 50,
+         "ngram_filter_sizes": [3]
+        }
+      }
+    },
+    "utterance_embedder": {
+      "tokens": {
+        "type": "embedding",
+        "embedding_dim": 50,
+        "trainable": true
+      },
+      "token_characters": {
+        "type": "character_encoding",
+        "embedding": {
+         "num_embeddings": 262,
+         "embedding_dim": 16
+        },
+        "encoder": {
+         "type": "cnn",
+         "embedding_dim": 16,
+         "num_filters": 50,
+         "ngram_filter_sizes": [3]
+        }
+      }
+    },
+
+    "utterance_encoder": {
+      "type": "pass_through",
+      "input_dim": 100
+    }
+  },
+  "iterator": {
+    "type": "bucket",
+    "sorting_keys": [["logical_forms", "num_fields"], ["logical_forms", "list_num_tokens"]],
+    "padding_noise": 0.0,
+    "batch_size" : 32
+  },
+  "trainer": {
+    "num_epochs": 20,
+    "patience": 10,
+    "validation_metric": "+mean_accuracy",
+    "cuda_device": 0,
+    "optimizer": {
+      "type": "adam"
+    }
+  }
+}

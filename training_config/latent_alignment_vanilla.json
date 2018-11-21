@@ -7,10 +7,12 @@
     "type": "latent_alignment",
     "max_logical_forms": 200
   },
-  "train_data_path": "fixtures/data/wikitables/alignment_preprocessed.json",
-  "validation_data_path": "fixtures/data/wikitables/alignment_preprocessed.json",
+
+  "train_data_path": "/u/murtyjay/allennlp_fork/LAM_lambda_dcs_all_lf/train.json",
+  "validation_data_path": "/u/murtyjay/allennlp_fork/LAM_lambda_dcs_all_lf/validation.json",
   "model": {
-    "type": "latent_alignment",
+    "type": "latent_alignment_dam",
+    "normalize_by_len" : true,
     "utterance_embedder": {
       "tokens": {
         "type": "embedding",
@@ -18,11 +20,12 @@
         "trainable": true
       }
     },
+
     "utterance_encoder": {
       "type": "pass_through",
       "input_dim": 100
     },
-
+    
     "logical_form_embedder": {
       "lf_tokens": {
         "type": "embedding",
@@ -36,15 +39,15 @@
     "type": "bucket",
     "sorting_keys": [["logical_forms", "num_fields"], ["logical_forms", "list_num_tokens"]],
     "padding_noise": 0.0,
-    "batch_size" : 2
+    "batch_size" : 32
   },
   "trainer": {
-    "num_epochs": 2,
+    "num_epochs": 20,
     "patience": 10,
-    "cuda_device": -1,
+    "validation_metric": "+mean_accuracy",
+    "cuda_device": 0,
     "optimizer": {
-      "type": "sgd",
-      "lr": 0.01
+      "type": "adam"
     }
   }
 }

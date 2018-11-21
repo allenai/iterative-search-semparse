@@ -12,11 +12,12 @@ from allennlp.nn import InitializerApplicator, RegularizerApplicator
 from allennlp.nn import util
 
 
-@Model.register("latent_alignment")
-class LatentAlignment(Model):
+@Model.register("latent_alignment_shared_char")
+class LatentAlignmentSharedChar(Model):
     def __init__(self, vocab: Vocabulary,
                  utterance_embedder: TextFieldEmbedder,
                  logical_form_embedder: TextFieldEmbedder,
+                 char_embedder: TextFieldEmbedder,
                  utterance_encoder: Seq2SeqEncoder,
                  normalize_by_len: bool = False,
                  initializer: InitializerApplicator = InitializerApplicator(),
@@ -25,11 +26,13 @@ class LatentAlignment(Model):
 
         self.utterance_embedder = utterance_embedder
         self.logical_form_embedder = logical_form_embedder
+        self.char_embedder = char_embedder
         self.utterance_encoder = utterance_encoder
 
         self.normalize_by_len = normalize_by_len
-        self.translation_layer = Linear(self.logical_form_embedder.get_output_dim(),
-                                        self.utterance_encoder.get_output_dim())
+        self.translation_layer = Linear(
+                self.char_embedder.get_output_dim() + self.logical_form_embedder.get_output_dim(),
+                self.utterance_encoder.get_output_dim())
 
         self.mean_ranks = 0.0
         self.accuracy = 0.0
@@ -55,21 +58,34 @@ class LatentAlignment(Model):
 
         """
         # (batch_size, num_utterance_tokens, utterance_embedding_dim)
-        embedded_utterance = self.utterance_embedder(utterance)
+        # import pdb; pdb.set_trace();
+        embedded_utterance_tokens = self.utterance_embedder({'tokens': utterance['tokens']})
+        embedded_utterance_char_tokens = self.char_embedder({'token_characters': utterance['token_characters']})
+
+        embedded_logical_forms = self.logical_form_embedder({'lf_tokens': logical_forms['lf_tokens']},
+                                                            num_wrapping_dims=1)
+        embedded_logical_forms_char_tokens = self.char_embedder(
+                {'token_characters': logical_forms['lf_token_characters']}, num_wrapping_dims=1)
+
+        embedded_utterance = torch.cat([embedded_utterance_tokens, embedded_utterance_char_tokens], dim=-1)
+        embedded_logical_forms = torch.cat([embedded_logical_forms, embedded_logical_forms_char_tokens], dim=-1)
+
         utterance_mask = util.get_text_field_mask(utterance)
         encoded_utterance = self.utterance_encoder(embedded_utterance, utterance_mask)
         # Because we're just summing everything in the end, we can do the sum upfront to save some
         # time.
         # (batch_size, utterance_embedding_dim)
         encoded_utterance = encoded_utterance.sum(dim=1)
-        # (batch_size, num_logical_forms, num_lf_tokens, lf_embedding_dim)
-        embedded_logical_forms = self.logical_form_embedder(logical_forms, num_wrapping_dims=1)
         # (batch_size, num_logical_forms, num_lf_tokens)
         logical_form_token_mask = util.get_text_field_mask(logical_forms, num_wrapping_dims=1)
+        logical_form_lens = 1 + torch.sum(logical_form_token_mask, dim=-1)  # to avoid division by zero, add 1
         # (batch_size, num_logical_forms)
         logical_form_mask = logical_form_token_mask.sum(dim=-1).clamp(max=1)
+
         # (batch_size, num_logical_forms, lf_embedding_dim)
+
         encoded_logical_forms = embedded_logical_forms.sum(dim=2)
+
         # (batch_size, num_logical_forms, utterance_embedding_dim)
         predicted_embeddings = self.translation_layer(encoded_logical_forms)
 
@@ -77,11 +93,9 @@ class LatentAlignment(Model):
         similarities = torch.nn.functional.cosine_similarity(predicted_embeddings,
                                                              encoded_utterance.unsqueeze(1),
                                                              dim=2)
-        # to avoid division by zero, add a 1
-        logical_form_lens = 1.0 + torch.sum(logical_form_token_mask, dim=-1, dtype=similarities.dtype)
         if self.normalize_by_len:
-            similarities = similarities / logical_form_lens
-            # Make sure masked logical forms aren't included in the max.
+            similarities = similarities / logical_form_lens.type(torch.cuda.FloatTensor)
+        # Make sure masked logical forms aren't included in the max.
         similarities = util.replace_masked_values(similarities, logical_form_mask, -1e7)
 
         ranks = (similarities[:, 0].unsqueeze(1) < similarities)
@@ -93,6 +107,8 @@ class LatentAlignment(Model):
         self.mean_ranks += curr_ranks.sum(dim=0).cpu().data.numpy()
         self.batches += ranks.shape[0]
 
+        # replace max with logsumexp
+        # loss = -1.0*torch.logsumexp(similarities,dim=-1).sum()
         max_similarity, most_similar = similarities.max(dim=-1)
         loss = (1 - max_similarity).sum()
 
@@ -101,8 +117,7 @@ class LatentAlignment(Model):
         most_similar_strings = []
         for instance_most_similar, instance_logical_forms in zip(most_similar.tolist(), logical_form_strings):
             most_similar_strings.append(instance_logical_forms[instance_most_similar])
-        return {"loss": loss, "most_similar": most_similar_strings, "utterance": utterance_string,
-                "all_similarities": similarities}
+        return {"loss": loss, "most_similar": most_similar_strings, "utterance": utterance_string}
 
     @overrides
     def get_metrics(self, reset: bool = False):
