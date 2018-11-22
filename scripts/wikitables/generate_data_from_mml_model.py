@@ -24,6 +24,7 @@ def make_data(input_examples_file: str,
               lang: str = "mapo") -> None:
 
     if lang == "mapo":
+        print("here")
         reader = WikiTablesVariableFreeDatasetReader(tables_directory=tables_directory,
                                                      keep_if_no_logical_forms = True)
     else:
