@@ -1,3 +1,4 @@
+
 """
 Reader for WikitableQuestions (https://github.com/ppasupat/WikiTableQuestions/releases/tag/v1.0.2),
 for a model that uses the variable free language defined in

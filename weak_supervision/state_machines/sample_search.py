@@ -16,15 +16,17 @@ class SampleSearch:
                initial_state: StateType,
                transition_function: TransitionFunction):
 
-        finished_states = []
-        for _ in range(self._max_num_finished_states):
-            _, curr_finished_states = self._sample_states(initial_state,
+        all_states = []
+        for _ in range(self._max_num_decoded_sequences):
+            curr_unfinished_states, curr_finished_states = self._sample_states(initial_state,
                                                           transition_function,
                                                           num_steps)
-            finished_states.extend(curr_finished_states)
+            all_states.extend(curr_finished_states)
+            all_states.extend(curr_unfinished_states)
+
 
         states_by_batch_index: Dict[int, List[State]] = defaultdict(list)
-        for state in finished_states:
+        for state in all_states:
             assert len(state.batch_indices) == 1
             batch_index = state.batch_indices[0]
             states_by_batch_index[batch_index].append(state)

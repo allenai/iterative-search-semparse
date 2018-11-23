@@ -638,11 +638,13 @@ class WikiTablesVariableFreeParser(Model):
         outputs['debug_info'] = []
         outputs['entities'] = []
         outputs['logical_form']: List[List[str]] = []
+        outputs['correct_logical_form']: List[List[str]] = [] 
         for i in range(batch_size):
             # Decoding may not have terminated with any completed logical forms, if `num_steps`
             # isn't long enough (or if the model is not trained enough and gets into an
             # infinite action loop).
             outputs['logical_form'].append([])
+            outputs['correct_logical_form'].append([])
             if i in best_final_states:
                 all_action_indices = [best_final_states[i][j].action_history[0] for j in
                                       range(len(best_final_states[i]))]
@@ -654,16 +656,18 @@ class WikiTablesVariableFreeParser(Model):
                         has_logical_form = True
                     except ParsingError:
                         logical_form = 'Error producing logical form'
+                    denotation_correct = world[i].evaluate_logical_form(logical_form, target_list[i])
                     if j == 0:
                         if has_logical_form:
                             self._has_logical_form(1.0)
                         else:
                             self._has_logical_form(0.0)
                         if target_list:
-                            denotation_correct = world[i].evaluate_logical_form(logical_form, target_list[i])
                             self._denotation_accuracy(1.0 if denotation_correct else 0.0)
                         outputs['best_action_sequence'].append(action_strings)
                     outputs['logical_form'][-1].append(logical_form)
+                    if denotation_correct: outputs['correct_logical_form'][-1].append(logical_form)
+
                 outputs['debug_info'].append(best_final_states[i][0].debug_info[0])  # type: ignore
                 outputs['entities'].append(world[i].table_graph.entities)
             else:

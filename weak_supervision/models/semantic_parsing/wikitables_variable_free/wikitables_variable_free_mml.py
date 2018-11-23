@@ -110,7 +110,7 @@ class WikiTablesVariableFreeMml(WikiTablesVariableFreeParser):
                          rule_namespace=rule_namespace)
         self._beam_search = decoder_beam_search
         if sample_test:
-            self._sample_search = SampleSearch(decoder_beam_search._beam_size)
+            self._sample_search = SampleSearch(200)
         else:
             self._sample_search = None
     
@@ -206,10 +206,9 @@ class WikiTablesVariableFreeMml(WikiTablesVariableFreeParser):
             # our output dictionary.
             initial_state.debug_info = [[] for _ in range(batch_size)]
             if self._sample_search:
-                print("using sampling")
-                best_final_states = self._sample_search(num_steps,
-                                                        initial_state,
-                                                        self._decoder_step)
+                best_final_states = self._sample_search.search(num_steps,
+                                                               initial_state,
+                                                               self._decoder_step)
             else:
                 best_final_states = self._beam_search.search(num_steps,
                                                              initial_state,

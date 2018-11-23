@@ -1,4 +1,6 @@
 #! /usr/bin/env python
+# -*- coding: utf-8 -*-
+
 
 # pylint: disable=invalid-name,wrong-import-position,protected-access
 import sys
@@ -7,6 +9,7 @@ import gzip
 import argparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir)))))
+
 
 from allennlp.data.dataset_readers import WikiTablesDatasetReader
 from allennlp.state_machines import BeamSearch
@@ -44,15 +47,12 @@ def make_data(input_examples_file: str,
     for example_line, instance in zip(lines, dataset):
         outputs = model.forward_on_instance(instance)
         parsed_info = util.parse_example_line(example_line)
-        unfinished_states = outputs['unfinished_states']
-        total_unfinished = len(unfinished_states)
-
-
         example_id = parsed_info["id"]
-        correct_logical_forms = outputs['all_logical_forms'][:num_logical_forms]
+        total = len(outputs['logical_form'])
+
+        correct_logical_forms = outputs['correct_logical_form'][:num_logical_forms]
         num_found = len(correct_logical_forms)
-        print(f"{num_found} found for {example_id}")
-        print(f"{total_unfinished} unfinished_states for {example_id}")
+        print(f"{num_found} / {total}  found for {example_id}")
         if num_found == 0:
             continue
         if not os.path.exists(output_dir):
