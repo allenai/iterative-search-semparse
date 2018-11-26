@@ -14,8 +14,10 @@ from allennlp.data.dataset_readers import WikiTablesDatasetReader
 from allennlp.state_machines import BeamSearch
 from allennlp.models.archival import load_archive
 from allennlp.data.dataset_readers.semantic_parsing.wikitables import util 
+from allennlp.state_machines import BeamSearch
 
 from weak_supervision.data.dataset_readers import WikiTablesVariableFreeDatasetReader
+from weak_supervision.state_machines import SampleSearch
 
 def make_data(input_examples_file: str,
               tables_directory: str,
@@ -23,7 +25,8 @@ def make_data(input_examples_file: str,
               output_dir: str,
               num_logical_forms: int,
               override_file: str = "",
-              lang: str = "mapo") -> None:
+              lang: str = "mapo",
+              beam_search: bool = False) -> None:
 
     if lang == "mapo":
         reader = WikiTablesVariableFreeDatasetReader(tables_directory=tables_directory,
@@ -39,6 +42,16 @@ def make_data(input_examples_file: str,
         archive = load_archive(archived_model_file)
     model = archive.model
     model.eval()
+
+    if args.beam_search:
+        print("using beam search")
+        model._beam_search = BeamSearch(beam_size = 100)
+        model._sample_search = None
+        model.sample_test = False
+    else:
+        print("using sampling")
+        model.sample_test = True 
+        model._sample_search = SampleSearch(200)
 
     lines = open(input_examples_file).readlines()
 
@@ -75,6 +88,8 @@ if __name__ == "__main__":
                            help="Number of logical forms to output", default=20)
     argparser.add_argument("--overrides", type=str, dest="overrides", help="Override config",
                            default="")
+    argparser.add_argument("--beam_search", action="store_true")
+    argparser.add_argument("--num_steps", type=int, dest="num_steps", help="Number of decoding steps",  default=-1)
     args = argparser.parse_args()
     make_data(args.input, args.tables_directory, args.archived_model, args.output_dir,
-              args.num_logical_forms, args.overrides, args.lang)
+              args.num_logical_forms, args.overrides, args.lang, args.beam_search)
