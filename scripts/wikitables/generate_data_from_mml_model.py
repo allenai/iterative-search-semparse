@@ -26,7 +26,8 @@ def make_data(input_examples_file: str,
               num_logical_forms: int,
               override_file: str = "",
               lang: str = "mapo",
-              beam_search: bool = False) -> None:
+              beam_search: bool = False,
+              num_steps: int = -1) -> None:
 
     if lang == "mapo":
         reader = WikiTablesVariableFreeDatasetReader(tables_directory=tables_directory,
@@ -53,6 +54,9 @@ def make_data(input_examples_file: str,
         model.sample_test = True 
         model._sample_search = SampleSearch(200)
 
+    if num_steps != -1:
+        model._max_decoding_steps = num_steps
+    
     lines = open(input_examples_file).readlines()
 
     for example_line, instance in zip(lines, dataset):
@@ -92,4 +96,4 @@ if __name__ == "__main__":
     argparser.add_argument("--num_steps", type=int, dest="num_steps", help="Number of decoding steps",  default=-1)
     args = argparser.parse_args()
     make_data(args.input, args.tables_directory, args.archived_model, args.output_dir,
-              args.num_logical_forms, args.overrides, args.lang, args.beam_search)
+              args.num_logical_forms, args.overrides, args.lang, args.beam_search, args.num_steps)
