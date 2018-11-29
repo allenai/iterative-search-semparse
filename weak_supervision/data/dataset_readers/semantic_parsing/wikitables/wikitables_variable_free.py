@@ -8,6 +8,7 @@ import logging
 from typing import Dict, List
 import os
 import gzip
+import tarfile
 
 from overrides import overrides
 
@@ -61,6 +62,20 @@ class WikiTablesVariableFreeDatasetReader(DatasetReader):
 
     @overrides
     def _read(self, file_path: str):
+        # Checking if there is a single tarball with all the logical forms. If so, untaring it
+        # first.
+        if self._offline_logical_forms_directory:
+            tarball_with_all_lfs: str = None
+            for filename in os.listdir(self._offline_logical_forms_directory):
+                if filename.endswith(".tar.gz"):
+                    tarball_with_all_lfs = os.path.join(self._offline_logical_forms_directory,
+                                                        filename)
+                    break
+            if tarball_with_all_lfs is not None:
+                logger.info(f"Found a tarball in offline logical forms directory: {tarball_with_all_lfs}")
+                logger.info("Assuming it contains logical forms for all questions and un-taring it.")
+                tarfile.open(tarball_with_all_lfs,
+                             mode='r:gz').extractall(path=self._offline_logical_forms_directory)
         with open(file_path, "r") as data_file:
             num_missing_logical_forms = 0
             num_lines = 0
