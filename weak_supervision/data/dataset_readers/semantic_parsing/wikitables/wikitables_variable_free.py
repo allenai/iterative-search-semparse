@@ -74,6 +74,10 @@ class WikiTablesVariableFreeDatasetReader(DatasetReader):
             if tarball_with_all_lfs is not None:
                 logger.info(f"Found a tarball in offline logical forms directory: {tarball_with_all_lfs}")
                 logger.info("Assuming it contains logical forms for all questions and un-taring it.")
+                # If you're running this with beaker, the input directory will be read-only and we
+                # cannot untar the files in the directory itself. So we will do so in /tmp, but that
+                # means the new offline logical forms directory will be /tmp.
+                self._offline_logical_forms_directory = "/tmp/"
                 tarfile.open(tarball_with_all_lfs,
                              mode='r:gz').extractall(path=self._offline_logical_forms_directory)
         with open(file_path, "r") as data_file:
