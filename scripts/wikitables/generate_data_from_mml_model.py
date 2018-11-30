@@ -46,7 +46,7 @@ def make_data(input_examples_file: str,
 
     if args.beam_search:
         print("using beam search")
-        model._beam_search = BeamSearch(beam_size = 100)
+        model._beam_search = BeamSearch(beam_size = 10)
         model._sample_search = None
         model.sample_test = False
     else:
@@ -59,6 +59,7 @@ def make_data(input_examples_file: str,
     
     lines = open(input_examples_file).readlines()
 
+    cnt = 0.0
     for example_line, instance in zip(lines, dataset):
         outputs = model.forward_on_instance(instance)
         parsed_info = util.parse_example_line(example_line)
@@ -68,6 +69,14 @@ def make_data(input_examples_file: str,
         correct_logical_forms = outputs['correct_logical_form'][:num_logical_forms]
         num_found = len(correct_logical_forms)
         print(f"{num_found} / {total}  found for {example_id}")
+        curr_cnt = 00
+        for lf in correct_logical_forms:
+            lf = str(lf)
+            if lf.count('filter') >= 2:
+                curr_cnt+=1.0
+        if curr_cnt>0:
+            cnt += 1.0
+
         if num_found == 0:
             continue
         if not os.path.exists(output_dir):
@@ -78,6 +87,7 @@ def make_data(input_examples_file: str,
             output_file.write(logical_form_line)
         output_file.close()
 
+    print("{}/{}".format(cnt, len(lines)))
 
 if __name__ == "__main__":
     argparser = argparse.ArgumentParser()

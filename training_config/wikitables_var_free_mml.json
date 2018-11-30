@@ -4,15 +4,15 @@
   "pytorch_seed": 953,
   "dataset_reader": {
     "type": "wikitables_variable_free",
-    "tables_directory": "/wikitables_tagged",
-    "offline_logical_forms_directory": "/offline_search_output/",
+    "tables_directory": "/u/murtyjay/WikiTableQuestions/",
+    "offline_logical_forms_directory": "/u/murtyjay/allennlp-weak-supervision-research/mml_output_i1_spbs_bs_30",
     "max_offline_logical_forms": 20,
     "lazy": false
   },
   "validation_dataset_reader": {
     "type": "wikitables_variable_free",
-    "tables_directory": "/wikitables_tagged",
-    "offline_logical_forms_directory": "/offline_search_output/",
+    "tables_directory": "/u/murtyjay/WikiTableQuestions/",
+    "offline_logical_forms_directory": "/u/murtyjay/allennlp-weak-supervision-research/mml_output_i1_spbs_bs_30",
     "keep_if_no_logical_forms": true,
     "lazy": false
   },
@@ -20,8 +20,8 @@
     "min_count": {"tokens": 3},
     "tokens_to_add": {"tokens": ["-1"]}
   },
-  "train_data_path": "/wikitables_raw_data/random-split-1-train.examples",
-  "validation_data_path": "/wikitables_raw_data/random-split-1-dev.examples",
+  "train_data_path": "/u/murtyjay/WikiTableQuestions/data/random-split-1-train.examples",
+  "validation_data_path": "/u/murtyjay/WikiTableQuestions/data/random-split-1-dev.examples",
   "model": {
     "type": "wikitables_variable_free_mml",
     "question_embedder": {

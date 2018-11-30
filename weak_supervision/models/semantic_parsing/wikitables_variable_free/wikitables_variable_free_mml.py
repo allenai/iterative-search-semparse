@@ -94,7 +94,7 @@ class WikiTablesVariableFreeMml(WikiTablesVariableFreeParser):
                  use_neighbor_similarity_for_linking: bool = False,
                  dropout: float = 0.0,
                  num_linking_features: int = 10,
-                 sample_test: bool = True,
+                 sample_test: bool = False,
                  rule_namespace: str = 'rule_labels') -> None:
         use_similarity = use_neighbor_similarity_for_linking
         super().__init__(vocab=vocab,
