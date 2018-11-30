@@ -95,7 +95,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
     def take_step(self,
                   state: GrammarBasedState,
                   max_actions: int = None,
-                  sample_states: bool = False,
+                  sample_states: float = 0.0,
                   allowed_actions: List[Set[int]] = None) -> List[GrammarBasedState]:
         if self._predict_start_type_separately and not state.action_history[0]:
             # The wikitables parser did something different when predicting the start type, which
@@ -217,7 +217,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                                batch_action_probs: Dict[int, List[Tuple[int, Any, Any, Any, List[int]]]],
                                max_actions: int,
                                allowed_actions: List[Set[int]],
-                               sample: bool):
+                               sample: float):
         # pylint: disable=no-self-use
 
         # We'll yield a bunch of states here that all have a `group_size` of 1, so that the
@@ -299,17 +299,22 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                                 if (not allowed_actions or
                                     group_actions[i] in allowed_actions[group_indices[i]])]
                 # this is the only change required to sample from current log probabilities instead of beam search
-                if sample:
-                    categorical_dist = Categorical(logits=curr_log_probs)
-                    _, group_index, log_prob, action_embedding, action = batch_states[categorical_dist.sample()]
+                categorical_dist = Categorical(logits=curr_log_probs)
+                all_sampled = categorical_dist.sample((max_actions,)) # sampled states but with replacement
+                all_indices = range(len(batch_states))
+                all_indices.sort(key = lambda  idx : batch_states[idx][0], reverse = True)
+                all_indices = all_indices[:max_actions] # beam search states
+
+                decisions = np.random.binomial(size=max_actions, n=1, p= sample)
+                for idx, (bs_index, sampled_index) in enumerate(zip(all_indices, all_sampled)):
+                    # use beam search
+                    if decisions[idx] == 0:
+                        _, group_index, log_prob, action_embedding, action = batch_states[bs_index]
+                    # use sampling
+                    else:
+                        _, group_index, log_prob, action_embedding, action = batch_states[sampled_index]
                     new_states.append(make_state(group_index, action, log_prob, action_embedding))
 
-                else:
-                    batch_states.sort(key=lambda x: x[0], reverse=True)
-                    if max_actions:
-                        batch_states = batch_states[:max_actions]
-                    for _, group_index, log_prob, action_embedding, action in batch_states:
-                        new_states.append(make_state(group_index, action, log_prob, action_embedding))
 
         return new_states
 

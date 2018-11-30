@@ -1,1 +1,1 @@
-from weak_supervision.state_machines.sample_search import SampleSearch
+from weak_supervision.state_machines.greedy_sample_search import GreedyEpsilonBeamSearch
