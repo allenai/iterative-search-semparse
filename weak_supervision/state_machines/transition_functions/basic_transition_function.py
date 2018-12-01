@@ -295,8 +295,8 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                                 if (not allowed_actions or
                                     group_actions[i] in allowed_actions[group_indices[i]])]
 
-                for state in batch_states:
-                    log_probs_cpu, group_index, log_prob, action_embedding, action = state
+                for next_state in batch_states:
+                    log_probs_cpu, group_index, log_prob, action_embedding, action = next_state
                     new_states.append((log_probs_cpu, make_state(group_index, action, log_prob, action_embedding)))
 
         return new_states
