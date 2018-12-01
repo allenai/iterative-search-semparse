@@ -94,7 +94,6 @@ class WikiTablesVariableFreeMml(WikiTablesVariableFreeParser):
                  use_neighbor_similarity_for_linking: bool = False,
                  dropout: float = 0.0,
                  num_linking_features: int = 10,
-                 sample_test: bool = False,
                  rule_namespace: str = 'rule_labels') -> None:
         use_similarity = use_neighbor_similarity_for_linking
         super().__init__(vocab=vocab,
@@ -109,13 +108,6 @@ class WikiTablesVariableFreeMml(WikiTablesVariableFreeParser):
                          num_linking_features=num_linking_features,
                          rule_namespace=rule_namespace)
         self._beam_search = decoder_beam_search
-        if sample_test:
-            self._sample_search = SampleSearch(200)
-        else:
-            self._sample_search = None
-    
-
-        self.sample_test = sample_test
         self._decoder_trainer = MaximumMarginalLikelihood(training_beam_size)
         self._decoder_step = LinkingTransitionFunction(encoder_output_dim=self._encoder.get_output_dim(),
                                                        action_embedding_dim=action_embedding_dim,
@@ -205,15 +197,10 @@ class WikiTablesVariableFreeMml(WikiTablesVariableFreeParser):
             # This tells the state to start keeping track of debug info, which we'll pass along in
             # our output dictionary.
             initial_state.debug_info = [[] for _ in range(batch_size)]
-            if self._sample_search:
-                best_final_states = self._sample_search.search(num_steps,
-                                                               initial_state,
-                                                               self._decoder_step)
-            else:
-                best_final_states = self._beam_search.search(num_steps,
-                                                             initial_state,
-                                                             self._decoder_step,
-                                                             keep_final_unfinished_states=False)
+            best_final_states = self._beam_search.search(num_steps,
+                                                         initial_state,
+                                                         self._decoder_step,
+                                                         keep_final_unfinished_states=False)
             for i in range(batch_size):
                 # Decoding may not have terminated with any completed logical forms, if `num_steps`
                 # isn't long enough (or if the model is not trained enough and gets into an

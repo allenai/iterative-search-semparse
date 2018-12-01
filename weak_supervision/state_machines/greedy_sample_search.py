@@ -89,3 +89,27 @@ class GreedyEpsilonBeamSearch(FromParams, Generic[StateType]):
             best_states[batch_index] = [state[1] for state in finished_to_sort[:self._beam_size]]
         return best_states
 
+    def greedy_epsilon_process:
+        all_indices = list(range(len(batch_states)))
+        all_indices.sort(key = lambda  idx : batch_states[idx][0], reverse = True)
+        # keep track of actions chosen so far
+        chosen = [0 for _ in all_indices] 
+        unchosen = set(all_indices)
+
+        # keep track of current largest unchosen
+        curr_top = 0
+        decisions = np.random.binomial(size=min(len(batch_states),max_actions), n=1, p= sample)
+        for decision in decisions:
+            # use the current highest
+            if not decision: 
+                _, group_index, log_prob, action_embedding, action = batch_states[curr_top]
+                chosen[curr_top] = 1
+                unchosen.remove(curr_top)
+            else:
+                random_idx = random.sample(unchosen, 1)[0]
+                unchosen.remove(random_idx)
+                _, group_index, log_prob, action_embedding, action = batch_states[random_idx]
+                chosen[random_idx] = 1
+            # restore the invariant
+            while curr_top < len(chosen) and chosen[curr_top]: curr_top += 1
+            new_states.append(make_state(group_index, action, log_prob, action_embedding))

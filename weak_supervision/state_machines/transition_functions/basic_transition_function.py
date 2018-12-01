@@ -4,9 +4,10 @@ from typing import Any, Dict, List, Set, Tuple
 from overrides import overrides
 
 import torch
+import random
+import numpy as np
 from torch.nn.modules.rnn import LSTMCell
 from torch.nn.modules.linear import Linear
-from torch.distributions.categorical import Categorical
 
 from allennlp.modules import Attention
 from allennlp.nn import util, Activation
@@ -96,12 +97,13 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                   state: GrammarBasedState,
                   max_actions: int = None,
                   sample_states: float = 0.0,
+                  temperature: float = 1.0,
                   allowed_actions: List[Set[int]] = None) -> List[GrammarBasedState]:
         if self._predict_start_type_separately and not state.action_history[0]:
             # The wikitables parser did something different when predicting the start type, which
             # is our first action.  So in this case we break out into a different function.  We'll
             # ignore max_actions on our first step, assuming there aren't that many start types.
-            return self._take_first_step(state, sample_states, allowed_actions)
+            return self._take_first_step(state, False, allowed_actions)
 
         # Taking a step in the decoder consists of three main parts.  First, we'll construct the
         # input to the decoder and update the decoder's hidden state.  Second, we'll use this new
@@ -121,6 +123,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                                                  batch_results,
                                                  max_actions,
                                                  allowed_actions,
+                                                 temperature,
                                                  sample_states)
 
 
@@ -217,6 +220,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                                batch_action_probs: Dict[int, List[Tuple[int, Any, Any, Any, List[int]]]],
                                max_actions: int,
                                allowed_actions: List[Set[int]],
+                               temperature: float,
                                sample: float):
         # pylint: disable=no-self-use
 
@@ -298,23 +302,30 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                                 for i in range(len(group_actions))
                                 if (not allowed_actions or
                                     group_actions[i] in allowed_actions[group_indices[i]])]
-                # this is the only change required to sample from current log probabilities instead of beam search
-                categorical_dist = Categorical(logits=curr_log_probs)
-                all_sampled = categorical_dist.sample((max_actions,)) # sampled states but with replacement
-                all_indices = range(len(batch_states))
+
+                all_indices = list(range(len(batch_states)))
                 all_indices.sort(key = lambda  idx : batch_states[idx][0], reverse = True)
-                all_indices = all_indices[:max_actions] # beam search states
+                # keep track of actions chosen so far
+                chosen = [0 for _ in all_indices] 
+                unchosen = set(all_indices)
 
-                decisions = np.random.binomial(size=max_actions, n=1, p= sample)
-                for idx, (bs_index, sampled_index) in enumerate(zip(all_indices, all_sampled)):
-                    # use beam search
-                    if decisions[idx] == 0:
-                        _, group_index, log_prob, action_embedding, action = batch_states[bs_index]
-                    # use sampling
+                # keep track of current largest unchosen
+                curr_top = 0
+                decisions = np.random.binomial(size=min(len(batch_states),max_actions), n=1, p= sample)
+                for decision in decisions:
+                    # use the current highest
+                    if not decision: 
+                        _, group_index, log_prob, action_embedding, action = batch_states[curr_top]
+                        chosen[curr_top] = 1
+                        unchosen.remove(curr_top)
                     else:
-                        _, group_index, log_prob, action_embedding, action = batch_states[sampled_index]
+                        random_idx = random.sample(unchosen, 1)[0]
+                        unchosen.remove(random_idx)
+                        _, group_index, log_prob, action_embedding, action = batch_states[random_idx]
+                        chosen[random_idx] = 1
+                    # restore the invariant
+                    while curr_top < len(chosen) and chosen[curr_top]: curr_top += 1
                     new_states.append(make_state(group_index, action, log_prob, action_embedding))
-
 
         return new_states
 
