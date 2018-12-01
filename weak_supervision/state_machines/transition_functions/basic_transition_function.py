@@ -220,8 +220,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                                batch_action_probs: Dict[int, List[Tuple[int, Any, Any, Any, List[int]]]],
                                max_actions: int,
                                allowed_actions: List[Set[int]],
-                               temperature: float,
-                               sample: float):
+                              ):
         # pylint: disable=no-self-use
 
         # We'll yield a bunch of states here that all have a `group_size` of 1, so that the
@@ -281,17 +280,14 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                 group_log_probs: List[torch.Tensor] = []
                 group_action_embeddings = []
                 group_actions = []
-                group_curr_log_probs = []
                 for group_index, log_probs, curr_log_probs, action_embeddings, actions in results:
                     group_indices.extend([group_index] * len(actions))
                     group_log_probs.append(log_probs)
                     group_action_embeddings.append(action_embeddings)
                     group_actions.extend(actions)
-                    group_curr_log_probs.append(curr_log_probs)
 
 
                 log_probs = torch.cat(group_log_probs, dim=0)
-                curr_log_probs = torch.cat(group_curr_log_probs, dim=0)
                 action_embeddings = torch.cat(group_action_embeddings, dim=0)
                 log_probs_cpu = log_probs.data.cpu().numpy().tolist()
                 batch_states = [(log_probs_cpu[i],
@@ -303,29 +299,10 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                                 if (not allowed_actions or
                                     group_actions[i] in allowed_actions[group_indices[i]])]
 
-                all_indices = list(range(len(batch_states)))
-                all_indices.sort(key = lambda  idx : batch_states[idx][0], reverse = True)
-                # keep track of actions chosen so far
-                chosen = [0 for _ in all_indices] 
-                unchosen = set(all_indices)
 
-                # keep track of current largest unchosen
-                curr_top = 0
-                decisions = np.random.binomial(size=min(len(batch_states),max_actions), n=1, p= sample)
-                for decision in decisions:
-                    # use the current highest
-                    if not decision: 
-                        _, group_index, log_prob, action_embedding, action = batch_states[curr_top]
-                        chosen[curr_top] = 1
-                        unchosen.remove(curr_top)
-                    else:
-                        random_idx = random.sample(unchosen, 1)[0]
-                        unchosen.remove(random_idx)
-                        _, group_index, log_prob, action_embedding, action = batch_states[random_idx]
-                        chosen[random_idx] = 1
-                    # restore the invariant
-                    while curr_top < len(chosen) and chosen[curr_top]: curr_top += 1
-                    new_states.append(make_state(group_index, action, log_prob, action_embedding))
+                for state in batch_states:
+                    log_probs_cpu, group_index, log_prob, action_embedding, action = state
+                    new_states.append((log_probs_cpu, make_state(group_index, action, log_prob, action_embedding)))
 
         return new_states
 
