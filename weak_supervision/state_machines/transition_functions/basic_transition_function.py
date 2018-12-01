@@ -50,6 +50,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
         action vector in this case to account for that.
     dropout : ``float`` (optional, default=0.0)
     """
+
     def __init__(self,
                  encoder_output_dim: int,
                  action_embedding_dim: int,
@@ -96,14 +97,12 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
     def take_step(self,
                   state: GrammarBasedState,
                   max_actions: int = None,
-                  sample_states: float = 0.0,
-                  temperature: float = 1.0,
                   allowed_actions: List[Set[int]] = None) -> List[GrammarBasedState]:
         if self._predict_start_type_separately and not state.action_history[0]:
             # The wikitables parser did something different when predicting the start type, which
             # is our first action.  So in this case we break out into a different function.  We'll
             # ignore max_actions on our first step, assuming there aren't that many start types.
-            return self._take_first_step(state, False, allowed_actions)
+            return self._take_first_step(state,  allowed_actions)
 
         # Taking a step in the decoder consists of three main parts.  First, we'll construct the
         # input to the decoder and update the decoder's hidden state.  Second, we'll use this new
@@ -123,9 +122,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                                                  batch_results,
                                                  max_actions,
                                                  allowed_actions,
-                                                 temperature,
-                                                 sample_states)
-
+                                                 )
 
         return new_states
 
@@ -167,19 +164,19 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
             ones = predicted_action_embeddings.new([[1] for _ in range(group_size)])
             predicted_action_embeddings = torch.cat([predicted_action_embeddings, ones], dim=-1)
         return {
-                'hidden_state': hidden_state,
-                'memory_cell': memory_cell,
-                'attended_question': attended_question,
-                'attention_weights': attention_weights,
-                'predicted_action_embeddings': predicted_action_embeddings,
-                }
+            'hidden_state': hidden_state,
+            'memory_cell': memory_cell,
+            'attended_question': attended_question,
+            'attention_weights': attention_weights,
+            'predicted_action_embeddings': predicted_action_embeddings,
+        }
 
     def _compute_action_probabilities(self,
                                       state: GrammarBasedState,
                                       hidden_state: torch.Tensor,
                                       attention_weights: torch.Tensor,
                                       predicted_action_embeddings: torch.Tensor
-                                     ) -> Dict[int, List[Tuple[int, Any, Any, Any, List[int]]]]:
+                                      ) -> Dict[int, List[Tuple[int, Any, Any, Any, List[int]]]]:
         # We take a couple of extra arguments here because subclasses might use them.
         # pylint: disable=unused-argument,no-self-use
 
@@ -220,7 +217,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                                batch_action_probs: Dict[int, List[Tuple[int, Any, Any, Any, List[int]]]],
                                max_actions: int,
                                allowed_actions: List[Set[int]],
-                              ):
+                               ):
         # pylint: disable=no-self-use
 
         # We'll yield a bunch of states here that all have a `group_size` of 1, so that the
@@ -286,7 +283,6 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                     group_action_embeddings.append(action_embeddings)
                     group_actions.extend(actions)
 
-
                 log_probs = torch.cat(group_log_probs, dim=0)
                 action_embeddings = torch.cat(group_action_embeddings, dim=0)
                 log_probs_cpu = log_probs.data.cpu().numpy().tolist()
@@ -299,7 +295,6 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                                 if (not allowed_actions or
                                     group_actions[i] in allowed_actions[group_indices[i]])]
 
-
                 for state in batch_states:
                     log_probs_cpu, group_index, log_prob, action_embedding, action = state
                     new_states.append((log_probs_cpu, make_state(group_index, action, log_prob, action_embedding)))
@@ -308,7 +303,6 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
 
     def _take_first_step(self,
                          state: GrammarBasedState,
-                         sample_states: bool,
                          allowed_actions: List[Set[int]] = None) -> List[GrammarBasedState]:
         # We'll just do a projection from the current hidden state (which was initialized with the
         # final encoder output) to the number of start actions that we have, normalize those
@@ -324,12 +318,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
 
         sorted_log_probs, all_actions = log_probs.sort(dim=-1, descending=True)
         all_actions = all_actions.detach().cpu().numpy().tolist()
-        if sample_states:
-            # (group_size,) one action per group element
-            sampler = Categorical(logits=sorted_log_probs)
-            sampled_action_indices = sampler.sample().detach().cpu().numpy().tolist()
-            # we've sampled action_idx for the ith group
-            all_actions = [all_actions[i][action_idx] for i, action_idx in enumerate(sampled_action_indices)]
+
 
         if state.debug_info is not None:
             probs_cpu = log_probs.exp().detach().cpu().numpy().tolist()
@@ -347,28 +336,17 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
 
         best_next_states: Dict[int, List[Tuple[int, int, int]]] = defaultdict(list)
         for group_index, (batch_index, group_action) in enumerate(zip(state.batch_indices, all_actions)):
-            if sample_states: # just one action per group
-                action = considered_actions[group_index][group_action]
-                action_index = sampled_action_indices[group_index]
+            for action_index, action in enumerate(group_action):
+                # `action` is currently the index in `log_probs`, not the actual action ID.  To get
+                # the action ID, we need to go through `considered_actions`.
+                action = considered_actions[group_index][action]
                 if allowed_actions is not None and action not in allowed_actions[group_index]:
                     # This happens when our _decoder trainer_ wants us to only evaluate certain
-                    # actions, likely because they are the gold actions in this state.  We just skip
+                    # actions, likely because they are the gold actions in this state. We just skip
                     # emitting any state that isn't allowed by the trainer, because constructing the
                     # new state can be expensive.
                     continue
                 best_next_states[batch_index].append((group_index, action_index, action))
-            else:
-                for action_index, action in enumerate(group_action):
-                    # `action` is currently the index in `log_probs`, not the actual action ID.  To get
-                    # the action ID, we need to go through `considered_actions`.
-                    action = considered_actions[group_index][action]
-                    if allowed_actions is not None and action not in allowed_actions[group_index]:
-                        # This happens when our _decoder trainer_ wants us to only evaluate certain
-                        # actions, likely because they are the gold actions in this state.  We just skip
-                        # emitting any state that isn't allowed by the trainer, because constructing the
-                        # new state can be expensive.
-                        continue
-                    best_next_states[batch_index].append((group_index, action_index, action))
 
         new_states = []
         for batch_index, best_states in sorted(best_next_states.items()):
@@ -382,6 +360,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                 # the previous RNN state, as predicting the start type wasn't included in the
                 # decoder RNN in the original model.
                 new_rnn_state = state.rnn_state[group_index]
+                new_score_cpu = new_score.detach().cpu().numpy()
                 new_state = state.new_state_from_group_index(group_index,
                                                              action,
                                                              new_score,
@@ -389,7 +368,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                                                              considered_actions[group_index],
                                                              probs_cpu[group_index],
                                                              None)
-                new_states.append(new_state)
+                new_states.append((new_score_cpu, new_state))
         return new_states
 
     def attend_on_question(self,
