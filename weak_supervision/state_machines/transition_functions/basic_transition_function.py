@@ -286,6 +286,7 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                     group_action_embeddings.append(action_embeddings)
                     group_actions.extend(actions)
 
+
                 log_probs = torch.cat(group_log_probs, dim=0)
                 action_embeddings = torch.cat(group_action_embeddings, dim=0)
                 log_probs_cpu = log_probs.data.cpu().numpy().tolist()

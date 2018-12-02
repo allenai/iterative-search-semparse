@@ -62,7 +62,7 @@ class GreedyEpsilonBeamSearch(FromParams, Generic[StateType]):
         states = [initial_state]
         step_num = 1
         while states and step_num <= num_steps:
-            next_states: Dict[int, List[StateType]] = defaultdict(list)
+            continuation_states: Dict[int, List[StateType]] = defaultdict(list)
             grouped_state = states[0].combine_states(states)
 
             # Since we are doing greedy epsilon beam search, we first want to collect all next states for every example
@@ -72,24 +72,28 @@ class GreedyEpsilonBeamSearch(FromParams, Generic[StateType]):
                 # hard-coding a group size of 1.  But, our use of `next_state.is_finished()`
                 # already checks for that, as it crashes if the group size is not 1.
                 batch_index = next_state.batch_indices[0]
-                if next_state.is_finished():
-                    finished_states[batch_index].append((score, next_state))
-                else:
-                    if step_num == num_steps and keep_final_unfinished_states:
-                        finished_states[batch_index].append((score,next_state))
-                    next_states[batch_index].append((score,next_state))
+                continuation_states[batch_index].append((score,next_state))
 
             states = []
-            for batch_index, batch_states in next_states.items():
+            for batch_index, batch_states in continuation_states.items():
                 # here we process all the batch states to return self._beam_size number of states per example
                 # by using the greedy epsilon beam search method
-                states.extend(self.greedy_epsilon_process(batch_states))
+                decoded_states = self.greedy_epsilon_process(batch_states)
+                for score, next_state in decoded_states:
+                    if next_state.is_finished():
+                        finished_states[batch_index].append((score, next_state))
+                    else:
+                        if step_num == num_steps and keep_final_unfinished_states:
+                            finished_states[batch_index].append((score,next_state))
+                        else:
+                            states.append(next_state)
+
             step_num += 1
         best_states: Dict[int, Sequence[StateType]] = {}
         for batch_index, batch_states in finished_states.items():
             # The time this sort takes is pretty negligible, no particular need to optimize this
             # yet.  Maybe with a larger beam size...
-            best_states[batch_index] = self.greedy_epsilon_process(batch_states)
+            best_states[batch_index] = [state for _, state in self.greedy_epsilon_process(batch_states)]
         return best_states
 
     def greedy_epsilon_process(self, batch_states):
@@ -112,17 +116,17 @@ class GreedyEpsilonBeamSearch(FromParams, Generic[StateType]):
         for decision in decisions:
             # use the current highest
             if not decision: 
-                _, state = batch_states[curr_top]
+                score, state = batch_states[curr_top]
                 chosen[curr_top] = 1
                 unchosen.remove(curr_top)
             else:
                 random_idx = random.sample(unchosen, 1)[0]
                 unchosen.remove(random_idx)
-                _, state = batch_states[random_idx]
+                score, state = batch_states[random_idx]
                 chosen[random_idx] = 1
             # restore the invariant
             while curr_top < len(chosen) and chosen[curr_top]: curr_top += 1
-            new_states.append(state)
+            new_states.append((score,state))
 
         return new_states
 

@@ -43,7 +43,7 @@ def make_data(input_examples_file: str,
     model = archive.model
     model.eval()
 
-    model._beam_search = BeamSearch(beam_size=100) #GreedyEpsilonBeamSearch(beam_size = 100, epsilon=beam_search_eps)
+    model._beam_search = GreedyEpsilonBeamSearch(beam_size = 100, epsilon=beam_search_eps)
 
     if num_steps != -1:
         model._max_decoding_steps = num_steps
@@ -93,7 +93,7 @@ if __name__ == "__main__":
                            help="Number of logical forms to output", default=20)
     argparser.add_argument("--overrides", type=str, dest="overrides", help="Override config",
                            default="")
-    argparser.add_argument("--beam_search", type=float, default=1.0, help="epsilon for greedy decoding")
+    argparser.add_argument("--beam_search", type=float, default=0.0, help="epsilon for greedy decoding")
     argparser.add_argument("--num_steps", type=int, dest="num_steps", help="Number of decoding steps",  default=-1)
     args = argparser.parse_args()
     make_data(args.input, args.tables_directory, args.archived_model, args.output_dir,
