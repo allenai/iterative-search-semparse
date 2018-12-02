@@ -11,7 +11,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(os.path.join(
 
 
 from allennlp.data.dataset_readers import WikiTablesDatasetReader
-from allennlp.state_machines import BeamSearch
 from allennlp.models.archival import load_archive
 from allennlp.data.dataset_readers.semantic_parsing.wikitables import util 
 from allennlp.state_machines import BeamSearch
@@ -44,7 +43,7 @@ def make_data(input_examples_file: str,
     model = archive.model
     model.eval()
 
-    model._beam_search = GreedyEpsilonBeamSearch(beam_size = 100, epsilon=beam_search_eps)
+    model._beam_search = BeamSearch(beam_size=100) #GreedyEpsilonBeamSearch(beam_size = 100, epsilon=beam_search_eps)
 
     if num_steps != -1:
         model._max_decoding_steps = num_steps

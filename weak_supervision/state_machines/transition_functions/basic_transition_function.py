@@ -298,7 +298,16 @@ class BasicTransitionFunction(TransitionFunction[GrammarBasedState]):
                                 if (not allowed_actions or
                                     group_actions[i] in allowed_actions[group_indices[i]])]
 
-                for next_state in batch_states:
+                # make sure states are sorted for beam search
+
+                indices = list(range(len(batch_states)))
+                if not greedy_process:
+                    indices.sort(key = lambda idx: batch_states[idx][0], reverse=True)
+                    if max_actions: 
+                        indices = indices[:max_actions] 
+
+                for idx in indices:
+                    next_state = batch_states[idx]
                     log_probs_cpu, group_index, log_prob, action_embedding, action = next_state
                     if greedy_process:
                         new_states.append((log_probs_cpu, make_state(group_index, action, log_prob, action_embedding)))

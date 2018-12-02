@@ -67,7 +67,7 @@ class GreedyEpsilonBeamSearch(FromParams, Generic[StateType]):
 
             # Since we are doing greedy epsilon beam search, we first want to collect all next states for every example
             # before we process them
-            for score, next_state in transition_function.take_step(grouped_state, max_actions=None):
+            for score, next_state in transition_function.take_step(grouped_state, max_actions=None, greedy_process=True):
                 # NOTE: we're doing state.batch_indices[0] here (and similar things below),
                 # hard-coding a group size of 1.  But, our use of `next_state.is_finished()`
                 # already checks for that, as it crashes if the group size is not 1.
