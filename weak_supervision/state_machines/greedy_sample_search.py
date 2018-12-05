@@ -116,13 +116,15 @@ class GreedyEpsilonBeamSearch(FromParams, Generic[StateType]):
         for decision in decisions:
             # use the current highest
             if not decision: 
-                score, state = batch_states[curr_top]
+                idx = all_indices[curr_top]
+                score, state = batch_states[idx]
                 chosen[curr_top] = 1
                 unchosen.remove(curr_top)
             else:
                 random_idx = random.sample(unchosen, 1)[0]
                 unchosen.remove(random_idx)
-                score, state = batch_states[random_idx]
+                idx = all_indices[random_idx]
+                score, state = batch_states[idx]
                 chosen[random_idx] = 1
             # restore the invariant
             while curr_top < len(chosen) and chosen[curr_top]: curr_top += 1

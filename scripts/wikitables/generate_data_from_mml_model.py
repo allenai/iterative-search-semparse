@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(os.path.join(
 from allennlp.data.dataset_readers import WikiTablesDatasetReader
 from allennlp.models.archival import load_archive
 from allennlp.data.dataset_readers.semantic_parsing.wikitables import util 
-from allennlp.state_machines import BeamSearch
+from weak_supervision.state_machines import BeamSearch
 
 from weak_supervision.data.dataset_readers import WikiTablesVariableFreeDatasetReader
 from weak_supervision.state_machines import GreedyEpsilonBeamSearch
@@ -25,7 +25,7 @@ def make_data(input_examples_file: str,
               num_logical_forms: int,
               override_file: str = "",
               lang: str = "mapo",
-              beam_search_eps: float = 1.0,
+              beam_search_eps: float = 0.0,
               num_steps: int = -1) -> None:
 
     if lang == "mapo":
@@ -44,6 +44,7 @@ def make_data(input_examples_file: str,
     model.eval()
 
     model._beam_search = GreedyEpsilonBeamSearch(beam_size = 100, epsilon=beam_search_eps)
+    #model._beam_search = BeamSearch(beam_size=100) 
 
     if num_steps != -1:
         model._max_decoding_steps = num_steps
