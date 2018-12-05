@@ -3,8 +3,9 @@
 from allennlp.common import Params
 from allennlp.common.testing import AllenNlpTestCase
 
-from weak_supervision.semparse.worlds import WikiTablesVariableFreeWorld
 from weak_supervision.data.dataset_readers import WikiTablesVariableFreeDatasetReader
+from weak_supervision.semparse.worlds import WikiTablesVariableFreeWorld
+
 
 def assert_dataset_correct(dataset):
     instances = list(dataset)
@@ -61,6 +62,18 @@ def assert_dataset_correct(dataset):
 class WikiTablesVariableFreeDatasetReaderTest(AllenNlpTestCase):
     def test_reader_reads(self):
         offline_search_directory = "fixtures/data/wikitables/action_space_walker_output"
+        params = {
+                'lazy': False,
+                'tables_directory': "fixtures/data/wikitables",
+                'offline_logical_forms_directory': offline_search_directory,
+                }
+        reader = WikiTablesVariableFreeDatasetReader.from_params(Params(params))
+        dataset = reader.read("fixtures/data/wikitables/sample_data.examples")
+        assert_dataset_correct(dataset)
+
+    def test_reader_reads_with_lfs_in_tarball(self):
+        offline_search_directory = \
+                "fixtures/data/wikitables/action_space_walker_output_with_single_tarball"
         params = {
                 'lazy': False,
                 'tables_directory': "fixtures/data/wikitables",
