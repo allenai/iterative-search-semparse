@@ -124,15 +124,18 @@ class ActionSpaceWalker:
             forms match.
         """
         if not agenda:
-            logger.warning("Agenda is empty! Returning all paths instead.")
-            return self.get_all_logical_forms(max_num_logical_forms)
+            if allow_partial_match:
+                logger.warning("Agenda is empty! Returning all paths instead.")
+                return self.get_all_logical_forms(max_num_logical_forms)
+            return []
         if self._completed_paths is None:
             self._walk()
         agenda_path_indices = [self._terminal_path_index[action] for action in agenda]
         if all([not path_indices for path_indices in agenda_path_indices]):
-            logger.warning("""None of the agenda items is in any of the paths found. Returning all
-                            paths.""")
-            return self.get_all_logical_forms(max_num_logical_forms)
+            if allow_partial_match:
+                logger.warning("""Agenda items not in any of the paths found. Returning all paths.""")
+                return self.get_all_logical_forms(max_num_logical_forms)
+            return []
         # We omit any agenda items that are not in any of the paths, since they would cause the
         # final intersection to be null.
         # TODO (pradeep): Sort the indices and do intersections in order, so that we can return the

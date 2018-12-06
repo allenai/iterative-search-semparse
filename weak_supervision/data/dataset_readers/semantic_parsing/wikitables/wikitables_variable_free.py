@@ -218,7 +218,7 @@ class WikiTablesVariableFreeDatasetReader(DatasetReader):
             fields['target_action_sequences'] = ListField(action_sequence_fields)
         if self._output_agendas:
             agenda_index_fields: List[Field] = []
-            for agenda_string in world.get_agenda():
+            for agenda_string in world.get_agenda(conservative=True):
                 agenda_index_fields.append(IndexField(action_map[agenda_string], action_field))
             if not agenda_index_fields:
                 agenda_index_fields = [IndexField(-1, action_field)]

@@ -1,6 +1,6 @@
 import re
 import csv
-from typing import Union, Dict, List, Optional, Tuple, Set
+from typing import Union, Dict, List, Tuple, Set
 from collections import defaultdict
 
 from unidecode import unidecode
@@ -211,10 +211,11 @@ class TableQuestionContext:
                 entity_text[typed_column_name] = typed_column_name.split(":")[-1].replace("_", " ")
 
             string_entities, numbers = self.get_entities_from_question()
-            for entity, column_name in string_entities:
+            for entity, column_names in string_entities:
                 entities.add(entity)
-                neighbors[entity].append(column_name)
-                neighbors[column_name].append(entity)
+                for column_name in column_names:
+                    neighbors[entity].append(column_name)
+                    neighbors[column_name].append(entity)
                 entity_text[entity] = entity.replace("string:", "").replace("_", " ")
             # For all numbers (except -1), we add all number and date columns as their neighbors.
             for number, _ in numbers:
@@ -330,21 +331,21 @@ class TableQuestionContext:
             normalized_token_text = self.normalize_string(token_text)
             if not normalized_token_text:
                 continue
-            token_column = self._string_in_table(normalized_token_text)
-            if token_column:
-                token_type = token_column.split(":")[0].replace("_column", "")
+            token_columns = self._string_in_table(normalized_token_text)
+            if token_columns:
+                token_type = token_columns[0].split(":")[0].replace("_column", "")
                 entity_data.append({'value': normalized_token_text,
                                     'token_start': i,
                                     'token_end': i+1,
                                     'token_type': token_type,
-                                    'token_in_column': token_column})
+                                    'token_in_columns': token_columns})
 
         extracted_numbers = self._get_numbers_from_tokens(self.question_tokens)
         # filter out number entities to avoid repetition
         expanded_entities = []
         for entity in self._expand_entities(self.question_tokens, entity_data):
             if entity["token_type"] == "string":
-                expanded_entities.append((f"string:{entity['value']}", entity['token_in_column']))
+                expanded_entities.append((f"string:{entity['value']}", entity['token_in_columns']))
         return expanded_entities, extracted_numbers  #TODO(shikhar) Handle conjunctions
 
     @staticmethod
@@ -408,10 +409,10 @@ class TableQuestionContext:
                     numbers.append((str(int(number + 10 ** num_zeros)), i))
         return numbers
 
-    def _string_in_table(self, candidate: str) -> Optional[str]:
+    def _string_in_table(self, candidate: str) -> List[str]:
         """
-        Checks if the string occurs in the table, and if it does, returns the name of the column
-        under which it occurs. If it does not, returns None.
+        Checks if the string occurs in the table, and if it does, returns the names of the columns
+        under which it occurs. If it does not, returns an empty list.
         """
         candidate_column_names: List[str] = []
         # First check if the entire candidate occurs as a cell.
@@ -421,15 +422,9 @@ class TableQuestionContext:
         if not candidate_column_names:
             for cell_value, column_names in self._string_column_mapping.items():
                 if candidate in cell_value:
-                    candidate_column_names = column_names
-                    break
-        if not candidate_column_names:
-            return None
+                    candidate_column_names.extend(column_names)
         candidate_column_names = list(set(candidate_column_names))
-        # Note: if candidate_column_names is now a list with more than one element, it means that
-        # the candidate matched a cell value that occurs under multiple columns. This is
-        # unusual, and we are ignoring such cases, and simply returning the first name.
-        return candidate_column_names[0]
+        return candidate_column_names
 
     def _process_conjunction(self, entity_data):
         raise NotImplementedError
@@ -444,7 +439,7 @@ class TableQuestionContext:
             current_end = entity['token_end']
             current_token = entity['value']
             current_token_type = entity['token_type']
-            current_token_column = entity['token_in_column']
+            current_token_columns = entity['token_in_columns']
 
             while current_end < len(question):
                 next_token = question[current_end].text
@@ -453,22 +448,22 @@ class TableQuestionContext:
                     current_end += 1
                     continue
                 candidate = "%s_%s" %(current_token, next_token_normalized)
-                candidate_column = self._string_in_table(candidate)
-                if candidate_column is None:
-                    candidate_type = None
-                else:
-                    candidate_type = candidate_column.split(":")[0].replace("_column", "")
-                if candidate_type is not None and candidate_type == current_token_type:
-                    current_end += 1
-                    current_token = candidate
-                else:
+                candidate_columns = self._string_in_table(candidate)
+                candidate_columns = list(set(candidate_columns).intersection(current_token_columns))
+                if not candidate_columns:
                     break
+                candidate_type = candidate_columns[0].split(":")[0].replace("_column", "")
+                if candidate_type != current_token_type:
+                    break
+                current_end += 1
+                current_token = candidate
+                current_token_columns = candidate_columns
 
             new_entities.append({'token_start' : current_start,
                                  'token_end' : current_end,
                                  'value' : current_token,
                                  'token_type': current_token_type,
-                                 'token_in_column': current_token_column})
+                                 'token_in_columns': current_token_columns})
         return new_entities
 
     @staticmethod

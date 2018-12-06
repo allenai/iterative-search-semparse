@@ -220,5 +220,4 @@ class WikiTablesVariableFreeMml(WikiTablesVariableFreeParser):
                                              target_values,
                                              metadata,
                                              outputs)
-
             return outputs

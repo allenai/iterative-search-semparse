@@ -717,6 +717,9 @@ class WikiTablesVariableFreeExecutor:
         most_frequent_list: List[str] = []
         for row in row_list:
             cell_value = row[column_name]
+            # Ignore if cell value is None or an empty string
+            if not cell_value:
+                continue
             value_frequencies[cell_value] += 1
             frequency = value_frequencies[cell_value]
             if frequency > max_frequency:

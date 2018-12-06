@@ -18,6 +18,7 @@ from allennlp.semparse.worlds.world import ParsingError, World
 
 from weak_supervision.semparse.type_declarations import wikitables_variable_free as types
 from weak_supervision.semparse.contexts import TableQuestionContext
+from weak_supervision.semparse.contexts.table_question_context import MONTH_NUMBERS
 from weak_supervision.semparse.executors import WikiTablesVariableFreeExecutor
 
 logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
@@ -203,49 +204,99 @@ class WikiTablesVariableFreeWorld(World):
                 translated_name = self.local_name_mapping[name]
         return translated_name
 
-    def get_agenda(self):
+    def get_agenda(self,
+                   conservative: bool = False):
+        """
+        Returns an agenda that can be used guide search.
+
+        Parameters
+        ----------
+        conservative : ``bool``
+            Setting this flag will return a subset of the agenda items that correspond to high
+            confidence lexical matches. You'll need this if you are going to use this agenda to
+            penalize a model for producing logical forms that do not contain some items in it. In
+            that case, you;ll want this agenda to have close to perfect precision, at the cost of a
+            lower recall. You may not want to set this flag if you are sorting the output from a
+            search procedure based on how much of this agenda is satisfied.
+        """
         agenda_items = []
         question_tokens = [token.text for token in self.table_context.question_tokens]
         question = " ".join(question_tokens)
-        if "at least" in question:
-            agenda_items.append("filter_number_greater_equals")
-        if "at most" in question:
-            agenda_items.append("filter_number_lesser_equals")
 
-        comparison_triggers = ["greater", "larger", "more"]
-        if any("no %s than" %word in question for word in comparison_triggers):
-            agenda_items.append("filter_number_lesser_equals")
-        elif any("%s than" %word in question for word in comparison_triggers):
-            agenda_items.append("filter_number_greater")
+        added_number_filters = False
+        if self._table_has_number_columns:
+            if "at least" in question:
+                agenda_items.append("filter_number_greater_equals")
+            if "at most" in question:
+                agenda_items.append("filter_number_lesser_equals")
+
+            comparison_triggers = ["greater", "larger", "more"]
+            if any(f"no {word} than" in question for word in comparison_triggers):
+                agenda_items.append("filter_number_lesser_equals")
+            elif any(f"{word} than" in question for word in comparison_triggers):
+                agenda_items.append("filter_number_greater")
+
+            # We want to keep track of this because we do not want to add both number and date
+            # filters to the agenda if we want to be conservative.
+            if agenda_items:
+                added_number_filters = True
         for token in question_tokens:
-            if token in ["next", "after", "below"]:
+            if token in ["next", "below"] or (token == "after" and not conservative):
                 agenda_items.append("next")
-            if token in ["previous", "before", "above"]:
+            if token in ["previous", "above"] or (token == "before" and not conservative):
                 agenda_items.append("previous")
-            if token == "total":
-                agenda_items.append("sum")
-            if token == "difference":
-                agenda_items.append("diff")
-            if token == "average":
-                agenda_items.append("average")
-            if token in ["least", "smallest", "shortest", "lowest"] and "at least" not in question:
-                # This condition is too brittle. But for most logical forms with "min", there are
-                # semantically equivalent ones with "argmin". The exceptions are rare.
-                if "what is the least" in question:
-                    agenda_items.append("min_number")
-                else:
-                    agenda_items.append("argmin")
-            if token in ["most", "largest", "highest", "longest", "greatest"] and "at most" not in question:
-                # This condition is too brittle. But for most logical forms with "max", there are
-                # semantically equivalent ones with "argmax". The exceptions are rare.
-                if "what is the most" in question:
-                    agenda_items.append("max_number")
-                else:
-                    agenda_items.append("argmax")
             if token in ["first", "top"]:
                 agenda_items.append("first")
             if token in ["last", "bottom"]:
                 agenda_items.append("last")
+            if token == "same":
+                agenda_items.append("same_as")
+
+            if self._table_has_number_columns:
+                # "total" does not always map to an actual summing operation.
+                if token == "total" and not conservative:
+                    agenda_items.append("sum")
+                if token == "difference" or "how many more" in question or "how much more" in question:
+                    agenda_items.append("diff")
+                if token == "average":
+                    agenda_items.append("average")
+                if token in ["least", "smallest", "shortest", "lowest"] and "at least" not in question:
+                    # This condition is too brittle. But for most logical forms with "min", there are
+                    # semantically equivalent ones with "argmin". The exceptions are rare.
+                    if "what is the least" not in question:
+                        agenda_items.append("argmin")
+                if token in ["most", "largest", "highest", "longest", "greatest"] and "at most" not in question:
+                    # This condition is too brittle. But for most logical forms with "max", there are
+                    # semantically equivalent ones with "argmax". The exceptions are rare.
+                    if "what is the most" not in question:
+                        agenda_items.append("argmax")
+
+            if self._table_has_date_columns:
+                if token in MONTH_NUMBERS or (token.isdigit() and len(token) == 4 and
+                                              int(token) < 2100 and int(token) > 1100):
+                    # Token is either a month or an year. We'll add date functions.
+                    if not added_number_filters or not conservative:
+                        if "after" in question_tokens:
+                            agenda_items.append("filter_date_greater")
+                        elif "before" in question_tokens:
+                            agenda_items.append("filter_date_lesser")
+                        elif "not" in question_tokens:
+                            agenda_items.append("filter_date_not_equals")
+                        else:
+                            agenda_items.append("filter_date_equals")
+
+            if "what is the least" in question and self._table_has_number_columns:
+                agenda_items.append("min_number")
+            if "what is the most" in question and self._table_has_number_columns:
+                agenda_items.append("max_number")
+            if "when" in question_tokens and self._table_has_date_columns:
+                if "last" in question_tokens:
+                    agenda_items.append("max_date")
+                elif "first" in question_tokens:
+                    agenda_items.append("min_date")
+                else:
+                    agenda_items.append("select_date")
+
 
         if "how many" in question:
             if "sum" not in agenda_items and "average" not in agenda_items:
@@ -262,6 +313,43 @@ class WikiTablesVariableFreeWorld(World):
             if agenda_item in self.terminal_productions:
                 agenda.append(self.terminal_productions[agenda_item])
 
+        if conservative:
+            # Some of the columns in the table have multiple types, and thus occur in the KG as
+            # different columns. We do not want to add them all to the agenda if their names,
+            # because it is unlikely that logical forms use them all. In fact, to be conservative,
+            # we won't add any of them. So we'll first identify such column names.
+            refined_column_productions: Dict[str, str] = {}
+            for column_name, signature in self._column_productions_for_agenda.items():
+                column_type, name = column_name.split(":")
+                if column_type == "string_column":
+                    if f"number_column:{name}" not in self._column_productions_for_agenda and \
+                       f"date_column:{name}" not in self._column_productions_for_agenda:
+                        refined_column_productions[column_name] = signature
+
+                elif column_type == "number_column":
+                    if f"string_column:{name}" not in self._column_productions_for_agenda and \
+                       f"date_column:{name}" not in self._column_productions_for_agenda:
+                        refined_column_productions[column_name] = signature
+
+                else:
+                    if f"string_column:{name}" not in self._column_productions_for_agenda and \
+                       f"number_column:{name}" not in self._column_productions_for_agenda:
+                        refined_column_productions[column_name] = signature
+            # Similarly, we do not want the same spans in the question to be added to the agenda as
+            # both string and number productions.
+            refined_entities: List[str] = []
+            refined_numbers: List[str] = []
+            for entity in self._question_entities:
+                if entity.replace("string:", "") not in self._question_numbers:
+                    refined_entities.append(entity)
+            for number in self._question_numbers:
+                if f"string:{number}" not in self._question_entities:
+                    refined_numbers.append(number)
+        else:
+            refined_column_productions = dict(self._column_productions_for_agenda)
+            refined_entities = list(self._question_entities)
+            refined_numbers = list(self._question_numbers)
+
         # Adding column names that occur in question.
         question_with_underscores = "_".join(question_tokens)
         normalized_question = re.sub("[^a-z0-9_]", "", question_with_underscores)
@@ -272,7 +360,7 @@ class WikiTablesVariableFreeWorld(World):
         # omitted from the agenda unnecessarily. That is fine, as we want to err on the side of
         # adding fewer rules to the agenda.
         tokens_in_column_names: Set[str] = set()
-        for column_name_with_type, signature in self._column_productions_for_agenda.items():
+        for column_name_with_type, signature in refined_column_productions.items():
             column_name = column_name_with_type.split(":")[1]
             # Underscores ensure that the match is of whole words.
             if f"_{column_name}_" in normalized_question:
@@ -281,11 +369,11 @@ class WikiTablesVariableFreeWorld(World):
                     tokens_in_column_names.add(token)
 
         # Adding all productions that lead to entities and numbers extracted from the question.
-        for entity in self._question_entities:
+        for entity in refined_entities:
             if entity.replace("string:", "") not in tokens_in_column_names:
                 agenda.append(f"{types.STRING_TYPE} -> {entity}")
 
-        for number in self._question_numbers:
+        for number in refined_numbers:
             # The reason we check for the presence of the number in the question again is because
             # some of these numbers are extracted from number words like month names and ordinals
             # like "first". On looking at some agenda outputs, I found that they hurt more than help
