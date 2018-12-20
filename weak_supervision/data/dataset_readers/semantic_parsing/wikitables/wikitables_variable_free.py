@@ -17,7 +17,7 @@ from allennlp.data.instance import Instance
 from allennlp.data.fields import (Field, TextField, MetadataField, ProductionRuleField,
                                   ListField, IndexField, KnowledgeGraphField)
 from allennlp.data.dataset_readers.dataset_reader import DatasetReader
-from allennlp.data.dataset_readers.semantic_parsing.wikitables import util as wikitables_util
+from weak_supervision.data.dataset_readers.semantic_parsing.wikitables import util as wikitables_util
 from allennlp.data.tokenizers import WordTokenizer
 from allennlp.data.tokenizers.tokenizer import Tokenizer
 from allennlp.data.tokenizers.word_splitter import SpacyWordSplitter
@@ -48,6 +48,7 @@ class WikiTablesVariableFreeDatasetReader(DatasetReader):
                  table_token_indexers: Dict[str, TokenIndexer] = None,
                  use_table_for_vocab: bool = False,
                  max_table_tokens: int = None,
+                 use_labeled: bool = False,
                  output_agendas: bool = False) -> None:
         super().__init__(lazy=lazy)
         self._tables_directory = tables_directory
@@ -60,6 +61,9 @@ class WikiTablesVariableFreeDatasetReader(DatasetReader):
         self._use_table_for_vocab = use_table_for_vocab
         self._max_table_tokens = max_table_tokens
         self._output_agendas = output_agendas
+        self._use_labeled = use_labeled
+        if use_labeled:
+            self.offline_logical_forms_directory = None
 
     @overrides
     def _read(self, file_path: str):
@@ -90,11 +94,16 @@ class WikiTablesVariableFreeDatasetReader(DatasetReader):
                 if not line:
                     continue
                 num_lines += 1
-                parsed_info = wikitables_util.parse_example_line(line)
+                if self._use_labeled:
+                    parsed_info = wikitables_util.parse_example_line_with_labels(line, use_lang=True)
+                    logical_forms = [parsed_info['target_lf']]
+                else:
+                    parsed_info = wikitables_util.parse_example_line(line)
                 question = parsed_info["question"]
                 # We want the tagged file, but the ``*.examples`` files typically point to CSV.
                 table_filename = os.path.join(self._tables_directory,
                                               parsed_info["table_filename"].replace("csv", "tagged"))
+                # this is false if use_labeled = True
                 if self._offline_logical_forms_directory:
                     logical_forms_filename = os.path.join(self._offline_logical_forms_directory,
                                                           parsed_info["id"] + '.gz')
@@ -109,7 +118,7 @@ class WikiTablesVariableFreeDatasetReader(DatasetReader):
                         num_missing_logical_forms += 1
                         if not self._keep_if_no_logical_forms:
                             continue
-                else:
+                elif not self._use_labeled:
                     logical_forms = None
 
                 table_lines = [line.split("\t") for line in open(table_filename).readlines()]

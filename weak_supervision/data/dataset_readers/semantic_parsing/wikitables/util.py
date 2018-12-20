@@ -64,7 +64,7 @@ def translate_to_lambda_dcs(formula: str):
 
 
 
-def parse_example_line_with_labels(lisp_string: str) -> Dict:
+def parse_example_line_with_labels(lisp_string: str, use_lang=False) -> Dict:
     """
     Training data in WikitableQuestions comes with examples in the form of lisp strings in the format:
         (example (id <example-id>)
@@ -87,11 +87,16 @@ def parse_example_line_with_labels(lisp_string: str) -> Dict:
         if string != "":
             target_values.append(string)
 
+    if use_lang:
+        target_lf = rest.strip()[:-2]
+    else:
+        target_lf = translate_to_lambda_dcs(rest.strip()[:-2])
+    
     return {'id': example_id,
             'question': question,
             'table_filename': table_filename,
             'target_values': target_values,
-            'target_lf' : translate_to_lambda_dcs(rest.strip()[:-2])}
+            'target_lf' : target_lf}
 
 def parse_example_line(lisp_string: str) -> Dict:
     """
